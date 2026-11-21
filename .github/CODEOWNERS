@@ -1,75 +1,63 @@
-# Replace the three placeholders below with real GitHub usernames
-# (find and replace in VS Code), then commit. See docs/setup/github-setup-mohan.md.
-#
-#   @MOHAN_USERNAME   Mohan  (lead)
-#   @SMARAN_USERNAME  Smaran
-#   @SRIJAN_USERNAME  Srijan
-#
-# GitHub does not count the author's own approval, so every folder lists its
-# owner AND one peer reviewer in a cycle: Mohan's folders add Smaran,
-# Smaran's folders add Srijan, Srijan's folders add Mohan.
-# The last matching pattern wins, so specific paths come after general ones.
-
 # Default: lead owns anything not listed
-*                                   @MOHAN_USERNAME @SMARAN_USERNAME
+*                                   @rcmohan25-web @Smaran-Aryal
 
 # Repo, CI and root config (Mohan)
-/.github/                           @MOHAN_USERNAME @SMARAN_USERNAME
-/.vscode/                           @MOHAN_USERNAME @SMARAN_USERNAME
-/pubspec.yaml                       @MOHAN_USERNAME @SMARAN_USERNAME
-/analysis_options.yaml              @MOHAN_USERNAME @SMARAN_USERNAME
-/scripts/                           @MOHAN_USERNAME @SMARAN_USERNAME
-/tools/                             @MOHAN_USERNAME @SMARAN_USERNAME
-/env/                               @MOHAN_USERNAME @SMARAN_USERNAME
-/README.md                          @MOHAN_USERNAME @SMARAN_USERNAME
-/CONTRIBUTING.md                    @MOHAN_USERNAME @SMARAN_USERNAME
+/.github/                           @rcmohan25-web @Smaran-Aryal
+/.vscode/                           @rcmohan25-web @Smaran-Aryal
+/pubspec.yaml                       @rcmohan25-web @Smaran-Aryal
+/analysis_options.yaml              @rcmohan25-web @Smaran-Aryal
+/scripts/                           @rcmohan25-web @Smaran-Aryal
+/tools/                             @rcmohan25-web @Smaran-Aryal
+/env/                               @rcmohan25-web @Smaran-Aryal
+/README.md                          @rcmohan25-web @Smaran-Aryal
+/CONTRIBUTING.md                    @rcmohan25-web @Smaran-Aryal
 
 # Mobile app, shared files (Mohan)
-/apps/mobile/lib/main.dart          @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/app.dart           @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/router/            @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/config/            @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/skeleton/          @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/android/               @MOHAN_USERNAME @SMARAN_USERNAME
+/apps/mobile/lib/main.dart          @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/app.dart           @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/router/            @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/config/            @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/skeleton/          @rcmohan25-web @Smaran-Aryal
+/apps/mobile/android/               @rcmohan25-web @Smaran-Aryal
 
 # Mobile features
-/apps/mobile/lib/features/auth/                    @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/features/profile_kyc/             @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/mobile/lib/features/explore/                 @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/mobile/lib/features/item_details/            @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/mobile/lib/features/borrower_bookings/       @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/mobile/lib/features/notifications/           @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/mobile/lib/features/reviews/                 @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/mobile/lib/features/renter_listings/         @SRIJAN_USERNAME @MOHAN_USERNAME
-/apps/mobile/lib/features/renter_inbox/            @SRIJAN_USERNAME @MOHAN_USERNAME
-/apps/mobile/lib/features/renter_handover_return/  @SRIJAN_USERNAME @MOHAN_USERNAME
-/apps/mobile/lib/features/renter_earnings/         @SRIJAN_USERNAME @MOHAN_USERNAME
+/apps/mobile/lib/features/auth/                    @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/features/profile_kyc/             @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/features/explore/                 @Smaran-Aryal @SRIJAN191
+/apps/mobile/lib/features/item_details/            @Smaran-Aryal @SRIJAN191
+/apps/mobile/lib/features/borrower_bookings/       @Smaran-Aryal @SRIJAN191
+/apps/mobile/lib/features/notifications/           @Smaran-Aryal @SRIJAN191
+/apps/mobile/lib/features/reviews/                 @Smaran-Aryal @SRIJAN191
+/apps/mobile/lib/features/renter_listings/         @SRIJAN191 @rcmohan25-web
+/apps/mobile/lib/features/renter_inbox/            @SRIJAN191 @rcmohan25-web
+/apps/mobile/lib/features/renter_handover_return/  @SRIJAN191 @rcmohan25-web
+/apps/mobile/lib/features/renter_earnings/         @SRIJAN191 @rcmohan25-web
 
 # Mobile tests: each owner for their own feature tests is fine, default applies.
-/apps/mobile/integration_test/      @SMARAN_USERNAME @SRIJAN_USERNAME
+/apps/mobile/integration_test/      @Smaran-Aryal @SRIJAN191
 
 # Admin web (Mohan, except analytics and audit_log)
-/apps/admin_web/                                   @MOHAN_USERNAME @SMARAN_USERNAME
-/apps/admin_web/lib/features/analytics/            @SMARAN_USERNAME @SRIJAN_USERNAME
-/apps/admin_web/lib/features/audit_log/            @SMARAN_USERNAME @SRIJAN_USERNAME
+/apps/admin_web/                                   @rcmohan25-web @Smaran-Aryal
+/apps/admin_web/lib/features/analytics/            @Smaran-Aryal @SRIJAN191
+/apps/admin_web/lib/features/audit_log/            @Smaran-Aryal @SRIJAN191
 
 # Packages
-/packages/rental_core/                             @MOHAN_USERNAME @SMARAN_USERNAME
-/packages/rental_core/lib/money/                   @SMARAN_USERNAME @SRIJAN_USERNAME
-/packages/rental_core/lib/widgets/terms_checkbox.dart @SMARAN_USERNAME @SRIJAN_USERNAME
-/packages/rental_data/lib/models/                  @MOHAN_USERNAME @SMARAN_USERNAME @SRIJAN_USERNAME
-/packages/rental_data/lib/repositories/            @SMARAN_USERNAME @SRIJAN_USERNAME
-/packages/rental_data/lib/repositories/supabase/   @SRIJAN_USERNAME @MOHAN_USERNAME
+/packages/rental_core/                             @rcmohan25-web @Smaran-Aryal
+/packages/rental_core/lib/money/                   @Smaran-Aryal @SRIJAN191
+/packages/rental_core/lib/widgets/terms_checkbox.dart @Smaran-Aryal @SRIJAN191
+/packages/rental_data/lib/models/                  @rcmohan25-web @Smaran-Aryal @SRIJAN191
+/packages/rental_data/lib/repositories/            @Smaran-Aryal @SRIJAN191
+/packages/rental_data/lib/repositories/supabase/   @SRIJAN191 @rcmohan25-web
 
 # Backend (Srijan only writes migrations)
-/supabase/                          @SRIJAN_USERNAME @MOHAN_USERNAME
-/shared/fixtures/money_cases.json   @SMARAN_USERNAME @SRIJAN_USERNAME
-/shared/fixtures/status_transitions.json @SRIJAN_USERNAME @SMARAN_USERNAME
+/supabase/                          @SRIJAN191 @rcmohan25-web
+/shared/fixtures/money_cases.json   @Smaran-Aryal @SRIJAN191
+/shared/fixtures/status_transitions.json @SRIJAN191 @Smaran-Aryal
 
 # Docs: each owner for their own files
-/docs/                              @MOHAN_USERNAME @SMARAN_USERNAME
-/docs/api-contract.md               @SMARAN_USERNAME @SRIJAN_USERNAME @MOHAN_USERNAME
-/docs/data-model.md                 @SRIJAN_USERNAME @MOHAN_USERNAME
-/docs/security.md                   @SRIJAN_USERNAME @MOHAN_USERNAME
-/docs/state-machine.md              @SRIJAN_USERNAME @MOHAN_USERNAME
-/docs/test-plan.md                  @SMARAN_USERNAME @SRIJAN_USERNAME
+/docs/                              @rcmohan25-web @Smaran-Aryal
+/docs/api-contract.md               @Smaran-Aryal @SRIJAN191 @rcmohan25-web
+/docs/data-model.md                 @SRIJAN191 @rcmohan25-web
+/docs/security.md                   @SRIJAN191 @rcmohan25-web
+/docs/state-machine.md              @SRIJAN191 @rcmohan25-web
+/docs/test-plan.md                  @Smaran-Aryal @SRIJAN191

@@ -35,7 +35,7 @@ class PrimaryButton extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 20),
-                const SizedBox(width: 8)
+                const SizedBox(width: 8),
               ],
               Flexible(child: Text(label, textAlign: TextAlign.center)),
             ],

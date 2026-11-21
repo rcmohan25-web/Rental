@@ -1,0 +1,17 @@
+# Shared lint rules (owner: Mohan). Each package includes this file.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - require_trailing_commas
+    - avoid_print
+    - always_declare_return_types
+    - unawaited_futures
+    - use_super_parameters

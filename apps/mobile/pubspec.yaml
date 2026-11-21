@@ -1,0 +1,29 @@
+name: rental
+description: Rental by Sapati, Android app for Borrowers and Renters.
+publish_to: none
+version: 0.1.0+1
+resolution: workspace
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
+
+# Feature owners add the packages they need in their own PR (one line each).
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+  rental_core:
+    path: ../../packages/rental_core
+  rental_data:
+    path: ../../packages/rental_data
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

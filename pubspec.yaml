@@ -1,0 +1,10 @@
+name: rental_workspace
+description: Dart workspace root for Rental by Sapati. Not an app, only lists the members.
+publish_to: none
+environment:
+  sdk: ^3.6.0
+workspace:
+  - apps/mobile
+  - apps/admin_web
+  - packages/rental_core
+  - packages/rental_data

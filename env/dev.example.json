@@ -1,0 +1,4 @@
+{
+  "SUPABASE_URL": "https://YOUR-DEV-PROJECT.supabase.co",
+  "SUPABASE_ANON_KEY": "paste the anon (public) key only. Never the service_role key"
+}

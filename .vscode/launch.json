@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Mobile (dev)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "apps/mobile",
+      "program": "lib/main.dart",
+      "args": ["--dart-define-from-file=../../env/dev.json"]
+    },
+    {
+      "name": "Admin web (dev, Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "apps/admin_web",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "args": ["--dart-define-from-file=../../env/dev.json"]
+    }
+  ]
+}

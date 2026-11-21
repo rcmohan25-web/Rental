@@ -1,0 +1,87 @@
+name: Flutter CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: flutter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter --version
+      - run: flutter pub get
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed apps packages
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: |
+          set -e
+          for d in packages/rental_core packages/rental_data apps/mobile apps/admin_web; do
+            if [ -d "$d/test" ]; then
+              echo "::group::flutter test $d"
+              (cd "$d" && flutter test)
+              echo "::endgroup::"
+            fi
+          done
+
+  build-apk:
+    name: Build debug APK
+    needs: analyze-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build
+        run: |
+          if [ -d apps/mobile/android ]; then
+            cd apps/mobile && flutter build apk --debug
+          else
+            echo "apps/mobile/android not created yet, run scripts/bootstrap first"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: hashFiles('apps/mobile/build/app/outputs/flutter-apk/app-debug.apk') != ''
+        with:
+          name: rental-debug-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
+
+  build-web:
+    name: Build admin web
+    needs: analyze-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Build
+        run: |
+          if [ -d apps/admin_web/web ] && [ -f apps/admin_web/web/index.html ]; then
+            cd apps/admin_web && flutter build web --release
+          else
+            echo "apps/admin_web/web not created yet, run scripts/bootstrap first"
+          fi

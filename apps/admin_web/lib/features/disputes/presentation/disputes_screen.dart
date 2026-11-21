@@ -10,8 +10,7 @@ class DisputesScreen extends StatelessWidget {
     return const PlaceholderView(
       title: 'Disputes',
       owner: 'Mohan',
-      description:
-          'Damage and non-return cases, decisions, legal action status.',
+      description: 'Damage and non-return cases, decisions, legal action status.',
     );
   }
 }

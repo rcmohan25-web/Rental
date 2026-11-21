@@ -12,8 +12,7 @@ class RenterHandoverReturnScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Handover and return',
         owner: 'Srijan',
-        description:
-            'Evidence photos, checklist, handover code entry, borrower ID and face photo, return and damage report.',
+        description: 'Evidence photos, checklist, handover code entry, borrower ID and face photo, return and damage report.',
       ),
     );
   }

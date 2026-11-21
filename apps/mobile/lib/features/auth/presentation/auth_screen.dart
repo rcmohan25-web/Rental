@@ -12,8 +12,7 @@ class AuthScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Sign in',
         owner: 'Mohan',
-        description:
-            'Splash, landing, sign-up (with optional ID step and a "Do it later" link), login.',
+        description: 'Splash, landing, sign-up (with optional ID step and a "Do it later" link), login.',
       ),
     );
   }

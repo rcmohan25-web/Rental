@@ -12,8 +12,7 @@ class RenterListingsScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'My listings',
         owner: 'Srijan',
-        description:
-            'Add, edit, pause and delete listings (1 to 5 photos, declared value, rules, pickup area).',
+        description: 'Add, edit, pause and delete listings (1 to 5 photos, declared value, rules, pickup area).',
       ),
     );
   }

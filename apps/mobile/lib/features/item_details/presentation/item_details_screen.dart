@@ -12,8 +12,7 @@ class ItemDetailsScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Item details',
         owner: 'Smaran',
-        description:
-            'Photo carousel, condition, daily price, deposit shown separately, date picker with blocked dates, cost breakdown.',
+        description: 'Photo carousel, condition, daily price, deposit shown separately, date picker with blocked dates, cost breakdown.',
       ),
     );
   }

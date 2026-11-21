@@ -10,8 +10,7 @@ class SettlementScreen extends StatelessWidget {
     return const PlaceholderView(
       title: 'Settlement and ledger',
       owner: 'Mohan',
-      description:
-          'Ledger, payout and refund recording (reference and optional proof).',
+      description: 'Ledger, payout and refund recording (reference and optional proof).',
     );
   }
 }

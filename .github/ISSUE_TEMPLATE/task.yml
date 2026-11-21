@@ -1,0 +1,22 @@
+name: Task
+description: A piece of planned work
+labels: ["task"]
+body:
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      placeholder: "Phase 1 (Identity and listing)"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs to be done
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      placeholder: "Gate or acceptance criteria"

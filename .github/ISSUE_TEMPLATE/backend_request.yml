@@ -1,0 +1,21 @@
+name: Backend request
+description: Ask Srijan for a schema, RLS or RPC change (only Srijan edits supabase/)
+labels: ["backend-request"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need
+      description: New column, RPC, policy, or a change to docs/api-contract.md
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Which screen or flow needs it
+    validations:
+      required: true
+  - type: input
+    id: rpc
+    attributes:
+      label: Proposed RPC name and params (optional)

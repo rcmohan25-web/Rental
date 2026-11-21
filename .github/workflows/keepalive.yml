@@ -1,0 +1,30 @@
+# Keeps free Supabase projects from pausing after about a week of inactivity.
+# Secrets (set the ones you have): SUPABASE_DEV_URL, SUPABASE_DEV_ANON_KEY,
+# SUPABASE_DEMO_URL, SUPABASE_DEMO_ANON_KEY.
+name: Keep Supabase alive
+
+on:
+  schedule:
+    - cron: "0 6 */3 * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping projects
+        env:
+          DEV_URL: ${{ secrets.SUPABASE_DEV_URL }}
+          DEV_KEY: ${{ secrets.SUPABASE_DEV_ANON_KEY }}
+          DEMO_URL: ${{ secrets.SUPABASE_DEMO_URL }}
+          DEMO_KEY: ${{ secrets.SUPABASE_DEMO_ANON_KEY }}
+        run: |
+          ping_one() {
+            if [ -z "$2" ] || [ -z "$3" ]; then echo "$1: secrets not set, skipped"; return; fi
+            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+              -H "apikey: $3" -H "Authorization: Bearer $3" \
+              "$2/rest/v1/profiles?select=id&limit=1" || true)
+            echo "$1: HTTP $code"
+          }
+          ping_one dev "$DEV_URL" "$DEV_KEY"
+          ping_one demo "$DEMO_URL" "$DEMO_KEY"

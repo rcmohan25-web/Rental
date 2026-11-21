@@ -1,0 +1,38 @@
+name: Database CI
+
+on:
+  pull_request:
+    paths: ["supabase/**", "shared/**", ".github/workflows/db-ci.yml"]
+  push:
+    branches: [main]
+    paths: ["supabase/**", "shared/**"]
+
+jobs:
+  db:
+    name: Migrations, lint and pgTAP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Check for a Supabase project
+        id: check
+        run: |
+          if [ -f supabase/config.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Start local stack
+        if: steps.check.outputs.present == 'true'
+        run: supabase start
+      - name: Apply migrations and seed from scratch
+        if: steps.check.outputs.present == 'true'
+        run: supabase db reset
+      - name: Lint database
+        if: steps.check.outputs.present == 'true'
+        run: supabase db lint --level warning
+      - name: pgTAP tests
+        if: steps.check.outputs.present == 'true'
+        run: |
+          if ls supabase/tests/*.sql >/dev/null 2>&1; then supabase test db; else echo "No pgTAP tests yet"; fi
+      - name: Skipped
+        if: steps.check.outputs.present != 'true'
+        run: echo "supabase/config.toml not found yet (Srijan runs supabase init in Phase 0). Nothing to check."

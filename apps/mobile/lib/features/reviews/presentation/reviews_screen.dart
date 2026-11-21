@@ -12,7 +12,8 @@ class ReviewsScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Reviews',
         owner: 'Smaran',
-        description: 'Ratings and reviews after completion (Phase 4, first to cut).',
+        description:
+            'Ratings and reviews after completion (Phase 4, first to cut).',
       ),
     );
   }

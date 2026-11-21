@@ -10,7 +10,8 @@ class TermsManagerScreen extends StatelessWidget {
     return const PlaceholderView(
       title: 'Terms manager',
       owner: 'Mohan',
-      description: 'Three term sets (general, borrower, renter) with versions and one active version each.',
+      description:
+          'Three term sets (general, borrower, renter) with versions and one active version each.',
     );
   }
 }

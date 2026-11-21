@@ -10,7 +10,8 @@ class SettingsScreen extends StatelessWidget {
     return const PlaceholderView(
       title: 'Platform settings',
       owner: 'Mohan',
-      description: 'Commission rate, deposit rate and other app_settings keys. Shows: Applies to new requests from now on.',
+      description:
+          'Commission rate, deposit rate and other app_settings keys. Shows: Applies to new requests from now on.',
     );
   }
 }

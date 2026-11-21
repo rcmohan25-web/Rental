@@ -12,7 +12,8 @@ class BorrowerBookingsScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'My bookings',
         owner: 'Smaran',
-        description: 'Request form, status timeline, next-step banner, borrower terms tick before payment, payment proof upload, receipt confirmation, refund status.',
+        description:
+            'Request form, status timeline, next-step banner, borrower terms tick before payment, payment proof upload, receipt confirmation, refund status.',
       ),
     );
   }

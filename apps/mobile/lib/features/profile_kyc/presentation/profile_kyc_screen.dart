@@ -12,7 +12,8 @@ class ProfileKycScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Profile and ID',
         owner: 'Mohan',
-        description: 'Profile edit, ID upload with consent notice, verification status banner, ID gate guard.',
+        description:
+            'Profile edit, ID upload with consent notice, verification status banner, ID gate guard.',
       ),
     );
   }

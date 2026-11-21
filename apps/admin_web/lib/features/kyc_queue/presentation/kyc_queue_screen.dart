@@ -10,7 +10,8 @@ class KycQueueScreen extends StatelessWidget {
     return const PlaceholderView(
       title: 'ID verification queue',
       owner: 'Mohan',
-      description: 'Review ID and face photos via short-lived signed URLs, approve or reject with reason.',
+      description:
+          'Review ID and face photos via short-lived signed URLs, approve or reject with reason.',
     );
   }
 }

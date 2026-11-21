@@ -12,7 +12,8 @@ class RenterInboxScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Requests inbox',
         owner: 'Srijan',
-        description: 'Incoming requests, accept or decline, renter terms tick right after Accept.',
+        description:
+            'Incoming requests, accept or decline, renter terms tick right after Accept.',
       ),
     );
   }

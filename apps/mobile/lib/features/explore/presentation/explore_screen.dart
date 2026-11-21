@@ -12,7 +12,8 @@ class ExploreScreen extends StatelessWidget {
       body: const PlaceholderView(
         title: 'Explore',
         owner: 'Smaran',
-        description: 'Item list, category chips, search, price and area filters, sort.',
+        description:
+            'Item list, category chips, search, price and area filters, sort.',
       ),
     );
   }

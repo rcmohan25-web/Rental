@@ -6,7 +6,8 @@ enum StatusTone { success, warning, danger, info, neutral }
 
 /// Status chip. Always colour + icon + text (never colour alone).
 class StatusChip extends StatelessWidget {
-  const StatusChip({required this.label, this.tone = StatusTone.neutral, super.key});
+  const StatusChip(
+      {required this.label, this.tone = StatusTone.neutral, super.key});
 
   final String label;
   final StatusTone tone;

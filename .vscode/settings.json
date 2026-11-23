@@ -2,5 +2,6 @@
   "editor.formatOnSave": true,
   "[dart]": { "editor.rulers": [80], "editor.selectionHighlight": false },
   "dart.lineLength": 80,
-  "dart.previewFlutterUiGuides": true
+  "dart.previewFlutterUiGuides": true,
+  "chat.permissions.default": "autopilot"
 }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Centered spinner for loading states.
 class LoadingView extends StatelessWidget {

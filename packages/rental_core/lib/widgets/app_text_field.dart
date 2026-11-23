@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Labelled text field with validation support.
 class AppTextField extends StatelessWidget {

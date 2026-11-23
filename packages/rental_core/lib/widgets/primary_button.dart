@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Main call-to-action button (hot pink, white bold label).
 class PrimaryButton extends StatelessWidget {

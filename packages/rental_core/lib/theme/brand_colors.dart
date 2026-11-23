@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Brand colours from the business notes (see docs/branding.md).
 abstract final class BrandColors {

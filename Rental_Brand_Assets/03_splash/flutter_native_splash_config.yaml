@@ -1,0 +1,14 @@
+# Paste into apps/mobile/pubspec.yaml (or flutter_native_splash.yaml), then run:
+#   dart run flutter_native_splash:create
+# Brand: navy background, white mark, "from Sapati" branding at the bottom.
+flutter_native_splash:
+  color: "#0F1B3D"
+  image: assets/branding/splash/splash_logo.png
+  branding: assets/branding/splash/splash_branding_from_sapati.png
+  branding_mode: bottom
+  android_12:
+    color: "#0F1B3D"
+    image: assets/branding/splash/splash_icon_android12.png
+    branding: assets/branding/splash/splash_branding_from_sapati.png
+  ios: false
+  web: false

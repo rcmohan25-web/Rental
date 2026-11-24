@@ -1,4 +1,57 @@
 {
-  "_note": "OWNER: Srijan. Phase 0 placeholder. List every allowed and forbidden transition (see docs/state-machine.md).",
-  "transitions": []
+  "_note": "OWNER: Srijan. Source: docs/state-machine.md and docs/api-contract.md section 3. Dart tests and pgTAP tests must both match every entry. A pair that is not listed under allowed_transitions is forbidden.",
+  "version": "0.2",
+  "statuses": [
+    "requested", "declined", "expired", "cancelled",
+    "renter_accepted", "awaiting_payment", "payment_submitted",
+    "payment_verified", "handed_over", "returned", "completed", "disputed"
+  ],
+  "date_blocking_statuses": [
+    "renter_accepted", "awaiting_payment", "payment_submitted",
+    "payment_verified", "handed_over", "returned", "disputed", "completed"
+  ],
+  "terminal_statuses": ["declined", "expired", "cancelled", "completed"],
+  "allowed_transitions": [
+    { "from": null,                 "to": "requested",         "actor": "borrower", "rpc": "create_booking_request" },
+    { "from": "requested",          "to": "declined",          "actor": "renter",   "rpc": "renter_decide_booking" },
+    { "from": "requested",          "to": "expired",           "actor": "system",   "rpc": "expire_stale_requests" },
+    { "from": "requested",          "to": "cancelled",         "actor": "borrower", "rpc": "cancel_booking" },
+    { "from": "requested",          "to": "renter_accepted",   "actor": "renter",   "rpc": "renter_decide_booking" },
+    { "from": "renter_accepted",    "to": "awaiting_payment",  "actor": "admin",    "rpc": "admin_approve_order", "also_actor": "system" },
+    { "from": "awaiting_payment",   "to": "payment_submitted", "actor": "borrower", "rpc": "submit_payment_proof" },
+    { "from": "payment_submitted",  "to": "payment_verified",  "actor": "admin",    "rpc": "admin_verify_payment" },
+    { "from": "payment_submitted",  "to": "awaiting_payment",  "actor": "admin",    "rpc": "admin_verify_payment", "note": "payment rejected with a reason; implied by state-machine row 6" },
+    { "from": "payment_verified",   "to": "handed_over",       "actor": "renter",   "rpc": "record_handover" },
+    { "from": "handed_over",        "to": "returned",          "actor": "renter",   "rpc": "record_return" },
+    { "from": "returned",           "to": "completed",         "actor": "admin",    "rpc": "admin_resolve_case" },
+    { "from": "returned",           "to": "disputed",          "actor": "admin",    "rpc": "admin_resolve_case" },
+    { "from": "disputed",           "to": "completed",         "actor": "admin",    "rpc": "admin_resolve_case", "note": "closing a dispute; implied, confirm in the contract" }
+  ],
+  "no_status_change": [
+    { "status": "handed_over", "actor": "borrower", "rpc": "confirm_receipt", "effect": "sets receipt_confirmed_at" }
+  ],
+  "forbidden_examples": [
+    { "from": null,                "to": "renter_accepted",  "why": "a booking always starts as requested" },
+    { "from": "requested",         "to": "payment_verified", "why": "steps cannot be skipped" },
+    { "from": "requested",         "to": "handed_over",      "why": "steps cannot be skipped" },
+    { "from": "renter_accepted",   "to": "handed_over",      "why": "payment must be verified first" },
+    { "from": "awaiting_payment",  "to": "payment_verified", "why": "only after a payment proof is submitted" },
+    { "from": "payment_verified",  "to": "returned",         "why": "the item must be handed over first" },
+    { "from": "handed_over",       "to": "completed",        "why": "the item must be returned and checked first" },
+    { "from": "declined",          "to": "renter_accepted",  "why": "terminal status" },
+    { "from": "expired",           "to": "requested",        "why": "terminal status" },
+    { "from": "cancelled",         "to": "requested",        "why": "terminal status" },
+    { "from": "completed",         "to": "disputed",         "why": "terminal status" },
+    { "from": "returned",          "to": "handed_over",      "why": "no going backwards" }
+  ],
+  "forbidden_actor_examples": [
+    { "from": "requested",         "to": "renter_accepted",  "actor": "borrower", "why": "only the Renter accepts" },
+    { "from": "requested",         "to": "declined",         "actor": "borrower", "why": "only the Renter declines (the Borrower cancels)" },
+    { "from": "requested",         "to": "renter_accepted",  "actor": "admin",    "why": "only the Renter accepts" },
+    { "from": "payment_submitted", "to": "payment_verified", "actor": "renter",   "why": "only an admin verifies payment" },
+    { "from": "payment_submitted", "to": "payment_verified", "actor": "borrower", "why": "a Borrower cannot verify their own payment" },
+    { "from": "payment_verified",  "to": "handed_over",      "actor": "borrower", "why": "only the Renter records the handover" },
+    { "from": "handed_over",       "to": "returned",         "actor": "borrower", "why": "only the Renter records the return" },
+    { "from": "returned",          "to": "completed",        "actor": "renter",   "why": "only an admin closes the case" }
+  ]
 }

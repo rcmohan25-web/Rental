@@ -1,4 +1,43 @@
 {
-  "_note": "OWNER: Smaran. Phase 0 placeholder. Add cases (see docs/reference plan, Section 4.4).",
-  "cases": []
+  "breakdown": [
+    { "name": "plan worked example",
+      "input": { "start": "2026-11-06", "end": "2026-11-08", "dailyPrice": 3500,
+                 "declaredValue": 160000, "depositRateBps": 2500, "commissionRateBps": 1000 },
+      "expected": { "days": 3, "rentalFee": 10500, "deposit": 40000,
+                    "commission": 1050, "renterEarning": 9450, "borrowerPays": 50500 } },
+    { "name": "single day minimum value",
+      "input": { "start": "2026-12-01", "end": "2026-12-01", "dailyPrice": 500,
+                 "declaredValue": 2000, "depositRateBps": 2500, "commissionRateBps": 1000 },
+      "expected": { "days": 1, "rentalFee": 500, "deposit": 500,
+                    "commission": 50, "renterEarning": 450, "borrowerPays": 1000 } },
+    { "name": "deposit rounds down (3086.25)",
+      "input": { "start": "2026-11-10", "end": "2026-11-11", "dailyPrice": 777,
+                 "declaredValue": 12345, "depositRateBps": 2500, "commissionRateBps": 1000 },
+      "expected": { "days": 2, "rentalFee": 1554, "deposit": 3086,
+                    "commission": 155, "renterEarning": 1399, "borrowerPays": 4640 } },
+    { "name": "commission rounds half up (100.5)",
+      "input": { "start": "2026-11-10", "end": "2026-11-12", "dailyPrice": 335,
+                 "declaredValue": 100000, "depositRateBps": 2500, "commissionRateBps": 1000 },
+      "expected": { "days": 3, "rentalFee": 1005, "deposit": 25000,
+                    "commission": 101, "renterEarning": 904, "borrowerPays": 26005 } },
+    { "name": "crosses month boundary",
+      "input": { "start": "2026-11-29", "end": "2026-12-02", "dailyPrice": 1000,
+                 "declaredValue": 20000, "depositRateBps": 2500, "commissionRateBps": 1000 },
+      "expected": { "days": 4, "rentalFee": 4000, "deposit": 5000,
+                    "commission": 400, "renterEarning": 3600, "borrowerPays": 9000 } }
+  ],
+  "lateFee": [
+    { "name": "returned inside grace", "endDate": "2026-11-08", "returnedAt": "2026-11-09T20:00:00",
+      "graceHours": 24, "dailyPrice": 3500, "multiplierX100": 150, "deposit": 40000,
+      "expectedLateDays": 0, "expectedFee": 0 },
+    { "name": "10 hours after grace = 1 day", "endDate": "2026-11-08", "returnedAt": "2026-11-10T10:00:00",
+      "graceHours": 24, "dailyPrice": 3500, "multiplierX100": 150, "deposit": 40000,
+      "expectedLateDays": 1, "expectedFee": 5250 },
+    { "name": "24h01m after grace = 2 days", "endDate": "2026-11-08", "returnedAt": "2026-11-11T00:01:00",
+      "graceHours": 24, "dailyPrice": 3500, "multiplierX100": 150, "deposit": 40000,
+      "expectedLateDays": 2, "expectedFee": 10500 },
+    { "name": "fee capped at deposit", "endDate": "2026-11-08", "returnedAt": "2026-11-11T00:01:00",
+      "graceHours": 24, "dailyPrice": 3500, "multiplierX100": 150, "deposit": 4000,
+      "expectedLateDays": 2, "expectedFee": 4000 }
+  ]
 }

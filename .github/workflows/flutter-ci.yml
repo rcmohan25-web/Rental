@@ -64,7 +64,7 @@ jobs:
           else
             echo "apps/mobile/android not created yet, run scripts/bootstrap first"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: hashFiles('apps/mobile/build/app/outputs/flutter-apk/app-debug.apk') != ''
         with:
           name: rental-debug-apk

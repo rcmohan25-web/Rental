@@ -1,20 +1,20 @@
-# API contract
 # Rental by Sapati — Shared API Contract
 
-**Version:** v1.0 — **FINALIZED & FROZEN**  
+**Version:** v0.3 — **FINANCIAL RULES APPROVED; FULL CONTRACT NOT YET FROZEN**  
 **Owners:** Smaran (Borrower/models/money) + Srijan (Supabase/Renter/RPC)  
-**Approver:** Mohan (lead), along with all teammates  
-**Basis:** `Documentationassets.zip` → *Rental by Sapati Final Implementation Plan* (21 November 2026), existing `docs/state-machine.md`, Smaran's v0.1 draft, Srijan's committed migration `20261123123544_initial_schema.sql`, and final team approval decisions.
+**Approver:** Mohan (lead), then all three teammates  
+**Basis:** `Documentationassets.zip` → *Rental by Sapati Final Implementation Plan* (21 November 2026), existing `docs/state-machine.md`, Smaran's v0.1 draft, and Srijan's committed migration `20261123123544_initial_schema.sql` (`d535dda`).
 
-> **Important:** This is the **finalized and approved shared contract** for implementation and release. The initial SQL and approved decisions govern all models, RPCs, and state transitions.
+> **Important:** This is the shared integration contract draft with **financial decisions approved by Mohan and acknowledged in the team group chat**. Other contract decisions remain open. Sections identifying the *initial committed migration* describe the original baseline, not the latest locally developed backend. Later migrations exist locally and Copilot reports passing isolated tests; this document does **not** independently verify those changes or imply that all endpoints are complete. Do not rewrite the original migration or freeze the entire contract until remaining decisions are approved.
 
 ## 1. Requirements and conventions
 
 - **Naming:** UI **Renter** = person lending/owning item; UI **Borrower** = person renting it. Database/JSON: `lender_id`, `borrower_id`. One user can do both.
 - **Stack:** Flutter/Dart + Supabase/PostgreSQL. Handwritten immutable Dart models in `packages/rental_data/lib/models`, `fromJson/toJson`, `equatable`; repositories have abstract, fake and Supabase implementations.
 - **Naming/types:** SQL and wire JSON `snake_case`; Dart `camelCase`; IDs UUID, timestamps `timestamptz` / ISO-8601 UTC; booking dates `YYYY-MM-DD` interpreted against **Asia/Kathmandu** local calendar, with **inclusive** start and end dates. `days = end - start + 1`.
-- **Money:** User-facing monetary amounts are **whole NPR** as required by plan section 4.4. The *committed database* currently stores `items.daily_rate` and `items.declared_value` as `NUMERIC(12,2)` and `bookings.commission_rate`/`deposit_rate` as `NUMERIC(5,4)` fractional rates (e.g. 0.10 = 10%). **Do not assume that integer basis-point columns already exist.** Proposed v0.2 wire contract: send monetary amounts as integer NPR and snapshot rates as fractional numeric values to minimize migration churn. The RPC must validate that authoritative amounts are whole NPR; exact commission rounding must be agreed in the shared money fixtures. Smaran's v0.1 basis-point approach is an **alternative**, not approved. Convert only with a coordinated new migration and Dart-model update.
-- **Plan formula:** `rental_fee = days × agreed_daily_rate`; `deposit_amount = round_to_whole_NPR(declared_value_snapshot × deposit_rate)`; `commission_amount = round_to_whole_NPR(rental_fee × commission_rate)`; `lender_earning = rental_fee − commission_amount`; `borrower_pays = rental_fee + deposit_amount`. The plan explicitly specifies whole-NPR rounding for deposit; **commission tie-breaking rounding mode needs team approval**. Use `shared/fixtures/money_cases.json` for Dart/SQL parity. No fee amounts accepted from client as authoritative.
+- **Money (APPROVED):** User-facing amounts are **whole NPR**. Store percentage rates as fractional PostgreSQL `NUMERIC` (`deposit_rate = 0.2000`, `commission_rate = 0.1000`), and use **basis points inside Dart** (`2000` and `1000` respectively); convert and validate only at the repository boundary (`bps = fractional_rate × 10000`, and vice versa). Retain existing SQL rate column names. The authoritative RPC validates whole-unit monetary inputs and computes amounts server-side; UI-provided totals must never be trusted. No requirement to add integer basis-point database columns.
+- **Approved formulas and rounding:** `rental_fee = inclusive_days × agreed_daily_rate`; `deposit_amount = ROUND_HALF_UP(declared_value_snapshot × deposit_rate)`; `commission_amount = ROUND_HALF_UP(rental_fee × commission_rate)`; `lender_earning = rental_fee − commission_amount`; `borrower_pays = rental_fee + deposit_amount`. Round deposit and commission to **whole NPR**, including `.5` boundaries. PostgreSQL `round(nonnegative_numeric, 0)` has the agreed behavior; Dart must use matching positive-value half-up logic and shared fixtures. Negative/invalid input amounts are rejected. **1.5× late-fee multiplier is approved; grace period, late-day rounding, caps, and deduction treatment are not yet approved.**
+- **Financial fixture boundary examples (APPROVED):** `declared_value = 5`, `deposit_rate = 0.20` → deposit `1` NPR; `rental_fee = 5`, `commission_rate = 0.10` → commission `1` NPR (half-up on `0.5`). Setting changes affect only bookings created afterward. Preserve each booking's original rate snapshots. `1.5×` is **not sufficient** to calculate a final late fee without the separate late-return policy.
 - **Safety:** Only controlled, authorized RPCs change booking states/money, admin settings, ledger statuses or privileged user columns. Use SQL constraints and RLS as defence in depth. All state-changing RPCs check user identity, account status, role and current state. Do not expose secrets, verification documents, handover code hashes or another person's private details.
 - **Payment honesty:** Manual payment outside the app; upload proof and admin verification only. No real gateway, escrow or automatic payouts. UI must say **“Manual payment (prototype)”**. Admin records payouts/refunds, does not execute them.
 - **Admin audit:** Admin changes to settings, terms and sensitive decisions must be logged in `audit_log` with before/after, actor and time (planned, not yet implemented).
@@ -35,11 +35,11 @@
 
 **Double-booking SQL:** the GiST exclusion constraint `prevent_double_booking` applies to the *same item* and overlapping **inclusive** date ranges when status is `renter_accepted`, `awaiting_payment`, `payment_submitted`, `payment_verified`, `handed_over`, `returned` or `disputed`. `requested`, `declined`, `expired`, `cancelled`, `completed` do not block. Do not change this without joint review; blocked-date views must match it. An item may still be unavailable **beyond** original dates due to late return, damage or admin pause—requires separate checks.
 
-**Timestamp follow-up (WRITTEN BUT NOT YET APPLIED/TESTED):** `20261124000000_add_updated_at_triggers.sql`, shared `set_updated_at()` function for `profiles`, `items`, `bookings`, `app_settings`. Keep this separate from the committed initial migration.
+**Timestamp follow-up (written locally; validate actual migration history before deployment):** `20261124000000_add_updated_at_triggers.sql`, shared `set_updated_at()` function for `profiles`, `items`, `bookings`, `app_settings`. Keep this separate from the committed initial migration.
 
-### 2.2 Plan-required future schema — **NOT YET IMPLEMENTED**
+### 2.2 Plan-required schema extensions — **CHECK CURRENT LOCAL MIGRATION STATUS**
 
-Before integrated Flutter models/RPCs work, Srijan must introduce compatible follow-up migrations for:
+The original baseline lacks the following structures. Follow-up migration files have subsequently been prepared locally; check `supabase/IMPLEMENTATION_STATUS.md` and actual tested SQL before treating any item as available in production:
 
 - **Profile:** `full_name` / `first_name`, phone, area, avatar, payout details, role (`user/admin`), account status (`active/suspended/deleted`), KYC status (`none/pending/verified/rejected`), review reason and securely restricted ID document references. **DECIDE:** add/derive these alongside `display_name`; never silently rename existing column.
 - **Item:** category, condition, 1–5 photos, rules, visibility/area support, exact pickup address stored **separately** in `item_pickup_details` with gated access; keep `daily_rate`, `pickup_area`, `status` as the current schema names unless the team agrees to rename and migrate.
@@ -121,11 +121,11 @@ Before integrated Flutter models/RPCs work, Srijan must introduce compatible fol
 
 **Required settings keys in the plan:** `commission_rate`, `deposit_rate`, `late_fee_multiplier`, `return_grace_hours`, `legal_action_period_days`, `request_expiry_hours`, `min_declared_value`, `auto_approve_orders`.
 
-- Current database supports generic JSONB `app_settings`, **but it has no approved values**. The plan's sample commission/deposit/late-fee/grace/period figures are **placeholders pending business/supervisor confirmation**, not operational defaults.
-- **Canonical names proposed for least migration churn:** keep plan's `commission_rate`, `deposit_rate`, `late_fee_multiplier`, etc.; if Smaran prefers `_bps` or `_x100` suffixes, that is a coordinated schema+RPC+money fixture decision, not a silent rename.
+- **Team-approved initial settings:** `deposit_rate = 0.2000` (20%), `commission_rate = 0.1000` (10%), `late_fee_multiplier = 1.5` (or `150` only within an explicitly x100 Dart representation). Rates remain editable only by authorized admins; bookings snapshot values at creation. These three values were confirmed by Mohan in the group chat. The grace period, request expiry, legal-action period, minimum declared value and auto-approval flag remain unapproved pending separate decisions. Do not use the old 25% example or seed unapproved values.
+- **Approved representation:** keep SQL settings keys `commission_rate`, `deposit_rate`, `late_fee_multiplier` and fractional numeric values for percentage rates. Dart uses `depositRateBps = 2000`, `commissionRateBps = 1000`, `lateFeeMultiplierX100 = 150`; conversions occur at the repository boundary, not by silently changing SQL field names.
 - Request RPC reads settings and validates expected types/ranges. Missing or malformed mandatory settings should produce an explicit error rather than falling back to `0` silently.
 - Booking snapshots are immutable after creation (except permitted status and evidence workflow fields); later item-price or admin-setting changes never rewrite old booking values.
-- Srijan's SQL calculations and Smaran's `money.dart` **must pass the same shared cases**: 3-day worked example (NPR 3,500/day, declared NPR 160,000, 25% deposit, 10% commission → fee 10,500; deposit 40,000; commission 1,050; lender earning 9,450; borrower total 50,500); one-day and edge-case rounding; invalid date/declared value; late/damage cases after rules approved.
+- Srijan's SQL calculations and Smaran's `money.dart` **must pass the same shared cases**: 3-day approved-rate example (NPR 3,500/day, declared NPR 160,000, **20% deposit**, **10% commission** → fee 10,500; deposit 32,000; commission 1,050; lender earning 9,450; borrower total **42,500**); one-day and edge-case rounding; invalid date/declared value; late/damage cases after rules approved.
 - Late fees follow plan's *intent* (late return, deposit deduction and renter earning adjustment), but exact calculation/rounding/cap and grace-period interaction remain decisions requiring sign-off.
 
 ## 6. Storage and privacy
@@ -163,24 +163,34 @@ Before integrated Flutter models/RPCs work, Srijan must introduce compatible fol
 | Owner | Required next actions |
 | --- | --- |
 | **Srijan** | Keep original migration; apply/test `updated_at` follow-up; propose compatible schema changes for profile/KYC, financial snapshots, terms acceptances, settings validation, storage and RPCs; preserve composite booking-owner FK; write pgTAP/security tests; update `docs/data-model.md`/`docs/security.md`. |
-| **Smaran** | Treat v0.2 as the *draft shared interface*; adapt handwritten `Booking`, `Item`, `Profile`, `Ledger`, `Terms` models and repository interfaces to **agreed field names and pending migrations**; write `money.dart` and `shared/fixtures/money_cases.json`; test whole-NPR calculations; build borrower features initially using fakes; don't call unimplemented RPCs as live. |
+| **Smaran** | Treat v0.3 as the *draft shared interface*; adapt handwritten `Booking`, `Item`, `Profile`, `Ledger`, `Terms` models and repository interfaces to **agreed field names and pending migrations**; write `money.dart` and `shared/fixtures/money_cases.json`; test whole-NPR calculations; build borrower features initially using fakes; don't call unimplemented RPCs as live. |
 | **Mohan** | Review the plan's business defaults, commission and deposit, late-fee/cancellation policy, KYC gates, handover-code delivery, account-retention design, additional RPCs, profile/private data and term versions; approve contract and main-branch merge gate. |
 
 ### Freeze gates
 
-- [x] Mohan, Smaran, Srijan approve exactly **one** `docs/api-contract.md`.
-- [x] Canonical field names and money representation agreed; both Dart and SQL adhere to it.
-- [x] All 16 required RPCs documented, with parameters, return schemas, errors and allowed transitions; mark implemented vs future as development proceeds.
-- [x] Three terms audiences, two acceptance ticks, contact privacy and hashed handover code have secure agreed designs.
-- [x] Corresponding models and first migration are merged, CI green (Phase 0 implementation-plan gate).
-- [x] No demo credentials or service-role secrets committed.
+- [ ] Mohan, Smaran, Srijan approve exactly **one** `docs/api-contract.md`.
+- [ ] Canonical non-money field names agreed; **money representation and three approved rates are resolved**, but Dart/SQL fixtures and integrated tests must verify parity.
+- [ ] All 16 required RPCs documented, with parameters, return schemas, errors and allowed transitions; mark implemented vs future as development proceeds.
+- [ ] Three terms audiences, two acceptance ticks, contact privacy and hashed handover code have secure agreed designs.
+- [ ] Corresponding models and first migration are merged, CI green (Phase 0 implementation-plan gate).
+- [ ] No demo credentials or service-role secrets committed.
 
-... [Decisions resolved and approved] ...
+## 9. Explicit team decisions before freeze
+
+1. **Financial decisions (RESOLVED):** Dart basis points, PostgreSQL fractional NUMERIC, half-up whole-NPR deposit/commission rounding, 20% deposit, 10% commission, 1.5× late-fee multiplier. **Still open:** late-day calculation, grace period, fee cap/deduction, and other configuration defaults.
+2. **Canonical field naming:** keep SQL `daily_rate`, `pickup_area`, `status`, `display_name`, `content`, text `version` and map them in Dart, or approve deliberate renames via migration? Decide full Profile/Item/Terms final shape.
+3. **Terms:** audience/version + immutable published copies, who may view historic accepted terms; how to validate old `terms_version_ids` UUID array.
+4. **Availability:** whether `returned`/`disputed` retain a calendar block, how ongoing overdue/damage affects dates beyond original range; cancellation permitted states.
+5. **Handover:** securely deliver code while retaining hashed-only verifier storage, lockout/reset and single use. Plaintext-storage change proposed by v0.1 is **not compliant with current plan**.
+6. **Account deletion:** reconcile Auth FK cascade with the plan's anonymised ledger/booking retention and data privacy.
+7. **Storage:** adopt/omit additional avatar/damage buckets and exact access scopes; mandatory sensitive handover photos remain admin-only.
+8. **Extra RPCs:** names and signatures for cancellation, blocked dates, gated contacts, terms reads, payout marking, secure code delivery.
+9. **Idempotency/errors:** scope and persistence of retry keys, SQLSTATE vs exception message mapping; standard response DTOs and permissions.
 
 ## 10. Change log
 
 | Version | Date | Change | Approval |
 | --- | --- | --- | --- |
 | v0.1 | 2026-11-24 | Smaran's detailed draft; contained differences from existing schema and unapproved placeholder settings | Draft only |
-| v0.2 | 2026-11-24 | Reconciled against actual 21 November plan and committed SQL, preserved mandatory 16 RPCs, corrected handover hash rule, separated implemented/future/proposed, listed decisions and work division | Team reviewed |
-| **v1.0** | **2026-11-24** | **Finalized and frozen after unanimous team approval of decisions, monetary examples, and RPC specs.** | **Approved & Frozen** |
+| **v0.2** | **2026-11-24** | Reconciled against actual 21 November plan and committed SQL, preserved mandatory 16 RPCs, corrected handover hash rule, separated implemented/future/proposed, listed decisions and work division | **Awaiting team review** |
+| **v0.3** | **2026-11-24** | Approved financial settings (20% deposit, 10% commission, 1.5× multiplier); Dart basis points ↔ PostgreSQL fractional NUMERIC; half-up whole-NPR rounding; corrected worked example; retained unresolved nonfinancial decisions and clarified local implementation status | **Financial decisions approved by Mohan; overall contract review pending** |

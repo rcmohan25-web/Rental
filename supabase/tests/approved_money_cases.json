@@ -1,0 +1,12 @@
+{
+  "note": "Backend-owned fixtures for Smaran to adopt in shared/fixtures after coordination. Rates in cases test configurable rules; defaults are listed separately.",
+  "approved_defaults": {"commission_bps": 1000, "deposit_bps": 2000, "late_fee_multiplier_x100": 150},
+  "cases": [
+    {"id": "approved_three_days", "days": 3, "daily_npr": 3500, "declared_npr": 160000, "commission_bps": 1000, "deposit_bps": 2000, "expected": {"rental_fee": 10500, "deposit_amount": 32000, "commission_amount": 1050, "lender_earning": 9450, "borrower_total": 42500}},
+    {"id": "one_day", "days": 1, "daily_npr": 100, "declared_npr": 2000, "commission_bps": 1000, "deposit_bps": 2000, "expected": {"rental_fee": 100, "deposit_amount": 400, "commission_amount": 10, "lender_earning": 90, "borrower_total": 500}},
+    {"id": "commission_tie", "days": 1, "daily_npr": 5, "declared_npr": 2, "commission_bps": 1000, "deposit_bps": 2000, "expected": {"rental_fee": 5, "deposit_amount": 0, "commission_amount": 1, "lender_earning": 4, "borrower_total": 5}},
+    {"id": "deposit_tie_configurable_rate", "days": 1, "daily_npr": 5, "declared_npr": 1, "commission_bps": 1000, "deposit_bps": 5000, "expected": {"rental_fee": 5, "deposit_amount": 1, "commission_amount": 1, "lender_earning": 4, "borrower_total": 6}},
+    {"id": "below_half", "days": 1, "daily_npr": 4, "declared_npr": 2, "commission_bps": 1000, "deposit_bps": 2000, "expected": {"rental_fee": 4, "deposit_amount": 0, "commission_amount": 0, "lender_earning": 4, "borrower_total": 4}},
+    {"id": "above_half", "days": 1, "daily_npr": 6, "declared_npr": 3, "commission_bps": 1000, "deposit_bps": 2000, "expected": {"rental_fee": 6, "deposit_amount": 1, "commission_amount": 1, "lender_earning": 5, "borrower_total": 7}}
+  ]
+}

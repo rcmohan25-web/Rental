@@ -1,4 +1,4 @@
-# API contract
+# Rental by Sapati — Shared API Contract
 
 **Owners: Smaran + Srijan. Frozen after Phase 0** (changes need a PR approved by all three, see CONTRIBUTING rule 4).
 

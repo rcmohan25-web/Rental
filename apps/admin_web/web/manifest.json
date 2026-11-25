@@ -1,11 +1,11 @@
 {
-    "name": "rental_admin",
-    "short_name": "rental_admin",
+    "name": "Rental Admin",
+    "short_name": "Rental Admin",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F7F8FC",
+    "theme_color": "#0F1B3D",
+    "description": "Rental Admin, the Sapati admin panel for the Rental app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

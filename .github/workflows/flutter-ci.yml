@@ -44,7 +44,6 @@ jobs:
   build-apk:
     name: Build debug APK
     needs: analyze-test
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +74,6 @@ jobs:
   build-web:
     name: Build admin web
     needs: analyze-test
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

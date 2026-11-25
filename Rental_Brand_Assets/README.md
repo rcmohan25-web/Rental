@@ -33,7 +33,7 @@ Android package: `com.sapati.rental`. Every asset is provided as **SVG (editable
 - **Taglines** ("Borrow what you need. Lend what you don't.") are suggestions, not from the plan.
 - **Sapati company wordmark** (`*_PLACEHOLDER`) is a simple stand-in. Replace it with Sapati's official logo if one exists; the "by Sapati / from Sapati" lines on the Rental lockups use plain Poppins text.
 - Demo item images are illustrations, not photos; use consented photos for the final demo and report.
-- Sample figures shown in artwork (NPR 50,500; code 482917) are examples only. The 50,500 matches the worked example in plan Section 4.4.
+- Sample figures shown in artwork (NPR 42,500 total payable; code 482917) are examples only. The 42,500 matches the approved worked example (rental fee NPR 10,500 + 20% deposit NPR 32,000).
 
 ## Fonts
 Poppins (Bold / Medium / Regular, SIL OFL) was used for lettering. If the app UI uses `google_fonts`, Poppins is a matching choice.

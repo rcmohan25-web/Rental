@@ -25,12 +25,14 @@ commission = rental_fee x commission_rate   renter_earning = rental_fee - commis
 borrower_pays_platform = rental_fee + deposit
 ```
 
-Examples with deposit_rate 25% and an **illustrative** minimum of NPR 1,000 (the admin sets the real one):
+Examples with deposit_rate 20% and an **illustrative** minimum of NPR 1,000 (the admin sets the real one):
 
-| Declared value | 25% of value | Deposit used |
+| Declared value | 20% of value | Deposit used |
 | --- | --- | --- |
-| NPR 160,000 | 40,000 | **40,000** |
-| NPR 2,000 | 500 | **1,000** (minimum applies) |
+| NPR 160,000 | 32,000 | **32,000** |
+| NPR 2,000 | 400 | **1,000** (minimum applies) |
+
+For a 3-day rental at daily rate NPR 3,500 (fee NPR 10,500) with declared value NPR 160,000 (20% deposit NPR 32,000), total borrower payable is **NPR 42,500**.
 
 Open point for Smaran and Srijan: `min_deposit_amount` should not exceed `min_declared_value`, otherwise the deposit could be higher than the item's value. Suggest `admin_update_setting` rejects that.
 

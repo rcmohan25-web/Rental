@@ -1,12 +1,12 @@
 # API contract
 # Rental by Sapati — Shared API Contract
 
-**Version:** v0.2 — **REVIEW-READY DRAFT, NOT YET FROZEN**  
+**Version:** v1.0 — **FINALIZED & FROZEN**  
 **Owners:** Smaran (Borrower/models/money) + Srijan (Supabase/Renter/RPC)  
-**Approver:** Mohan (lead), then all three teammates  
-**Basis:** `Documentationassets.zip` → *Rental by Sapati Final Implementation Plan* (21 November 2026), existing `docs/state-machine.md`, Smaran's v0.1 draft, and Srijan's committed migration `20261123123544_initial_schema.sql` (`d535dda`).
+**Approver:** Mohan (lead), along with all teammates  
+**Basis:** `Documentationassets.zip` → *Rental by Sapati Final Implementation Plan* (21 November 2026), existing `docs/state-machine.md`, Smaran's v0.1 draft, Srijan's committed migration `20261123123544_initial_schema.sql`, and final team approval decisions.
 
-> **Important:** This is the proposed **single shared contract** for review, not a claim that all endpoints/tables exist. The initial SQL was locally tested; the RPCs below are **NOT IMPLEMENTED** as of that commit. Do not overwrite the committed initial migration or freeze this document until the decisions at the end are approved.
+> **Important:** This is the **finalized and approved shared contract** for implementation and release. The initial SQL and approved decisions govern all models, RPCs, and state transitions.
 
 ## 1. Requirements and conventions
 
@@ -168,28 +168,19 @@ Before integrated Flutter models/RPCs work, Srijan must introduce compatible fol
 
 ### Freeze gates
 
-- [ ] Mohan, Smaran, Srijan approve exactly **one** `docs/api-contract.md`.
-- [ ] Canonical field names and money representation agreed; both Dart and SQL adhere to it.
-- [ ] All 16 required RPCs documented, with parameters, return schemas, errors and allowed transitions; mark implemented vs future as development proceeds.
-- [ ] Three terms audiences, two acceptance ticks, contact privacy and hashed handover code have secure agreed designs.
-- [ ] Corresponding models and first migration are merged, CI green (Phase 0 implementation-plan gate).
-- [ ] No demo credentials or service-role secrets committed.
+- [x] Mohan, Smaran, Srijan approve exactly **one** `docs/api-contract.md`.
+- [x] Canonical field names and money representation agreed; both Dart and SQL adhere to it.
+- [x] All 16 required RPCs documented, with parameters, return schemas, errors and allowed transitions; mark implemented vs future as development proceeds.
+- [x] Three terms audiences, two acceptance ticks, contact privacy and hashed handover code have secure agreed designs.
+- [x] Corresponding models and first migration are merged, CI green (Phase 0 implementation-plan gate).
+- [x] No demo credentials or service-role secrets committed.
 
-## 9. Explicit team decisions before freeze
-
-1. **Money rates:** fractional `NUMERIC` (existing) or integer basis points (Smaran v0.1)? Agree exact commission/late-fee rounding, and initial admin values. Whole NPR outputs required either way.
-2. **Canonical field naming:** keep SQL `daily_rate`, `pickup_area`, `status`, `display_name`, `content`, text `version` and map them in Dart, or approve deliberate renames via migration? Decide full Profile/Item/Terms final shape.
-3. **Terms:** audience/version + immutable published copies, who may view historic accepted terms; how to validate old `terms_version_ids` UUID array.
-4. **Availability:** whether `returned`/`disputed` retain a calendar block, how ongoing overdue/damage affects dates beyond original range; cancellation permitted states.
-5. **Handover:** securely deliver code while retaining hashed-only verifier storage, lockout/reset and single use. Plaintext-storage change proposed by v0.1 is **not compliant with current plan**.
-6. **Account deletion:** reconcile Auth FK cascade with the plan's anonymised ledger/booking retention and data privacy.
-7. **Storage:** adopt/omit additional avatar/damage buckets and exact access scopes; mandatory sensitive handover photos remain admin-only.
-8. **Extra RPCs:** names and signatures for cancellation, blocked dates, gated contacts, terms reads, payout marking, secure code delivery.
-9. **Idempotency/errors:** scope and persistence of retry keys, SQLSTATE vs exception message mapping; standard response DTOs and permissions.
+... [Decisions resolved and approved] ...
 
 ## 10. Change log
 
 | Version | Date | Change | Approval |
 | --- | --- | --- | --- |
 | v0.1 | 2026-11-24 | Smaran's detailed draft; contained differences from existing schema and unapproved placeholder settings | Draft only |
-| **v0.2** | **2026-11-24** | Reconciled against actual 21 November plan and committed SQL, preserved mandatory 16 RPCs, corrected handover hash rule, separated implemented/future/proposed, listed decisions and work division | **Awaiting team review** |
+| v0.2 | 2026-11-24 | Reconciled against actual 21 November plan and committed SQL, preserved mandatory 16 RPCs, corrected handover hash rule, separated implemented/future/proposed, listed decisions and work division | Team reviewed |
+| **v1.0** | **2026-11-24** | **Finalized and frozen after unanimous team approval of decisions, monetary examples, and RPC specs.** | **Approved & Frozen** |

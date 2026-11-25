@@ -9,6 +9,10 @@ concurrency:
   group: flutter-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # The one place to bump Flutter. Keep equal to `flutter --version` on the team's machines.
+  FLUTTER_VERSION: "3.47.3"
+
 jobs:
   analyze-test:
     name: Analyze and test
@@ -17,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.3"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter --version
@@ -40,7 +44,6 @@ jobs:
   build-apk:
     name: Build debug APK
     needs: analyze-test
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +53,7 @@ jobs:
           java-version: "17"
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.3"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get
@@ -71,13 +74,12 @@ jobs:
   build-web:
     name: Build admin web
     needs: analyze-test
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.47.3"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
       - run: flutter pub get

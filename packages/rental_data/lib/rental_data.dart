@@ -2,4 +2,5 @@
 library;
 
 export 'models/models.dart';
+export 'repositories/fake/fakes.dart';
 export 'repositories/repositories.dart';

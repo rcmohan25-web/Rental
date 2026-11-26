@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   equatable: ^3.0.0
+  rental_core:
+    path: ../rental_core
   supabase_flutter: ^2.8.0
 
 dev_dependencies:

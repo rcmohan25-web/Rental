@@ -3,6 +3,8 @@ library;
 
 export 'constants/app_constants.dart';
 export 'constants/honesty_texts.dart';
+export 'constants/payment_channels.dart';
+export 'constants/setting_keys.dart';
 export 'errors/app_exception.dart';
 export 'formatters/formatters.dart';
 export 'money/money.dart';

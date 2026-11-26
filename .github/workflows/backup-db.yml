@@ -21,7 +21,7 @@ jobs:
           docker run --rm postgres:17 pg_dump "$DB_URL" \
             --no-owner --no-privileges --schema=public > rental-backup.sql
           gzip rental-backup.sql
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.DB_URL != ''
         with:
           name: rental-db-backup-${{ github.run_id }}

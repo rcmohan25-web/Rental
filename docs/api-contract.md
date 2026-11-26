@@ -1,196 +1,355 @@
 # Rental by Sapati — Shared API Contract
 
-**Version:** v0.3 — **FINANCIAL RULES APPROVED; FULL CONTRACT NOT YET FROZEN**  
-**Owners:** Smaran (Borrower/models/money) + Srijan (Supabase/Renter/RPC)  
-**Approver:** Mohan (lead), then all three teammates  
-**Basis:** `Documentationassets.zip` → *Rental by Sapati Final Implementation Plan* (21 November 2026), existing `docs/state-machine.md`, Smaran's v0.1 draft, and Srijan's committed migration `20261123123544_initial_schema.sql` (`d535dda`).
+**Version:** v1.0 — **FROZEN**
+**Frozen on:** 2026-11-26 (date of the merge of the freeze PR; update if merged later)
+**Owners:** Smaran (models, money, Borrower) · Srijan (Supabase, RPCs, Renter) · Mohan (lead, auth/ID, admin panel)
+**Approved by:** see section 14
+**Basis:** Final Implementation Plan (21 Nov 2026) · supervisor decisions (23 Nov 2026, `docs/business-rules.md`) · Contract v0.3 (financial rules approved) · Mohan's reply to v0.2 (agreed by all three) · `supabase/IMPLEMENTATION_STATUS.md` (25 Nov 2026) for what already exists on `srijan/backend`.
 
-> **Important:** This is the shared integration contract draft with **financial decisions approved by Mohan and acknowledged in the team group chat**. Other contract decisions remain open. Sections identifying the *initial committed migration* describe the original baseline, not the latest locally developed backend. Later migrations exist locally and Copilot reports passing isolated tests; this document does **not** independently verify those changes or imply that all endpoints are complete. Do not rewrite the original migration or freeze the entire contract until remaining decisions are approved.
+## 0. What "frozen" means
 
-## 1. Requirements and conventions
+- This file and the models in `packages/rental_data/lib/models` are the single shared interface. Flutter code is written against it; SQL must match it.
+- **To change it:** open a PR labelled `contract-change`, get **all three** approvals, bump the version, add a change-log row (section 14). No one edits it as a side effect of another PR.
+- **Versions:** `v1.0.x` wording or clarification with no behaviour change; `v1.1` additive (new RPC, new optional field); `v2.0` breaking.
+- **Precedence:** supervisor decisions (`docs/business-rules.md`) > this contract > the plan.
+- **Status legend** used in every table:
+  - **IMPLEMENTED**: exists in the migrations on `srijan/backend` and passed the local SQL tests of 25 Nov 2026. Not yet merged to `main` and not yet exercised through a real API client.
+  - **DELTA**: implemented, but differs from this contract. The fix is listed in section 12.
+  - **PLANNED**: agreed here, not implemented yet.
+  - **DEFERRED**: intentionally postponed (section 13).
+- A name in this file is final even when its status is PLANNED. Argument names, return keys and error codes may not change without a contract change.
 
-- **Naming:** UI **Renter** = person lending/owning item; UI **Borrower** = person renting it. Database/JSON: `lender_id`, `borrower_id`. One user can do both.
-- **Stack:** Flutter/Dart + Supabase/PostgreSQL. Handwritten immutable Dart models in `packages/rental_data/lib/models`, `fromJson/toJson`, `equatable`; repositories have abstract, fake and Supabase implementations.
-- **Naming/types:** SQL and wire JSON `snake_case`; Dart `camelCase`; IDs UUID, timestamps `timestamptz` / ISO-8601 UTC; booking dates `YYYY-MM-DD` interpreted against **Asia/Kathmandu** local calendar, with **inclusive** start and end dates. `days = end - start + 1`.
-- **Money (APPROVED):** User-facing amounts are **whole NPR**. Store percentage rates as fractional PostgreSQL `NUMERIC` (`deposit_rate = 0.2000`, `commission_rate = 0.1000`), and use **basis points inside Dart** (`2000` and `1000` respectively); convert and validate only at the repository boundary (`bps = fractional_rate × 10000`, and vice versa). Retain existing SQL rate column names. The authoritative RPC validates whole-unit monetary inputs and computes amounts server-side; UI-provided totals must never be trusted. No requirement to add integer basis-point database columns.
-- **Approved formulas and rounding:** `rental_fee = inclusive_days × agreed_daily_rate`; `deposit_amount = ROUND_HALF_UP(declared_value_snapshot × deposit_rate)`; `commission_amount = ROUND_HALF_UP(rental_fee × commission_rate)`; `lender_earning = rental_fee − commission_amount`; `borrower_pays = rental_fee + deposit_amount`. Round deposit and commission to **whole NPR**, including `.5` boundaries. PostgreSQL `round(nonnegative_numeric, 0)` has the agreed behavior; Dart must use matching positive-value half-up logic and shared fixtures. Negative/invalid input amounts are rejected. **1.5× late-fee multiplier is approved; grace period, late-day rounding, caps, and deduction treatment are not yet approved.**
-- **Financial fixture boundary examples (APPROVED):** `declared_value = 5`, `deposit_rate = 0.20` → deposit `1` NPR; `rental_fee = 5`, `commission_rate = 0.10` → commission `1` NPR (half-up on `0.5`). Setting changes affect only bookings created afterward. Preserve each booking's original rate snapshots. `1.5×` is **not sufficient** to calculate a final late fee without the separate late-return policy.
-- **Safety:** Only controlled, authorized RPCs change booking states/money, admin settings, ledger statuses or privileged user columns. Use SQL constraints and RLS as defence in depth. All state-changing RPCs check user identity, account status, role and current state. Do not expose secrets, verification documents, handover code hashes or another person's private details.
-- **Payment honesty:** Manual payment outside the app; upload proof and admin verification only. No real gateway, escrow or automatic payouts. UI must say **“Manual payment (prototype)”**. Admin records payouts/refunds, does not execute them.
-- **Admin audit:** Admin changes to settings, terms and sensitive decisions must be logged in `audit_log` with before/after, actor and time (planned, not yet implemented).
-- **Error contract:** Prefer consistent stable symbolic error codes (section 7), with friendly Dart mapping. Exact PostgREST exception delivery and SQLSTATE/message convention must be tested before freeze. Avoid leaking private data in errors.
-- **Retry safety (PROPOSED):** Idempotency UUID for booking creation and payment-proof submissions; key scoped by caller and operation, and repeat must return the original result without duplicates. Requires schema support and agreement.
+## 1. Conventions
 
-## 2. Canonical schema: implemented now vs required follow-ups
+- **Naming:** UI **Renter** = lends the item; UI **Borrower** = takes it. Database and JSON: `lender_id`, `borrower_id`. One account can act as both.
+- **Stack:** Flutter/Dart + Supabase/PostgreSQL. Hand-written immutable Dart models (`equatable`, `fromJson`/`toJson`, no generated code). Every repository has an abstract interface, a fake and a Supabase implementation.
+- **Casing and types:** SQL and wire JSON `snake_case`; Dart `camelCase`. IDs are UUID. Timestamps are `timestamptz` in ISO-8601 UTC. Booking dates are `YYYY-MM-DD`, interpreted in **Asia/Kathmandu**, start and end **inclusive**: `days = end − start + 1`.
+- **Existing column names are kept** (`daily_rate`, `pickup_area`, `status`, `display_name`, `content`, text `version`). Dart models map them. No renames.
+- **Money is whole NPR.** Percentage rates are stored as fractional `NUMERIC(5,4)` (`0.2000`). Inside Dart, parse each rate into **integer basis points** (`0.2000` → `2000`) and never multiply doubles. Conversion happens only at the repository boundary.
+- **Formulas (approved):**
 
-### 2.1 Already in committed initial migration — **IMPLEMENTED LOCALLY**
+```
+days               = end_date - start_date + 1
+rental_fee         = days x agreed_daily_rate
+deposit_amount     = max( round_half_up(declared_value_snapshot x deposit_rate), min_deposit_amount )
+commission_amount  = round_half_up(rental_fee x commission_rate)
+lender_earning     = rental_fee - commission_amount
+borrower_pays      = rental_fee + deposit_amount
+```
 
-| Entity | Actual SQL columns | Constraints / access |
+  - `round_half_up` rounds to **whole NPR**, including exact `.5`. PostgreSQL `round(x, 0)` on non-negative numeric does this. In Dart use integer arithmetic: `(amount * rateBps + 5000) ~/ 10000`.
+  - `min_deposit_amount` is admin-set (supervisor decision). `admin_update_setting` must reject a value above `min_declared_value`.
+  - The Renter pays **no fee**. Sapati earns only `commission_amount`.
+  - Negative, fractional, NaN or out-of-range inputs are rejected with `INVALID_MONEY`.
+  - The server calculates every amount. A total sent by the client is never trusted.
+- **Snapshot rule:** `create_booking_request` copies `commission_rate`, `deposit_rate`, `min_deposit_amount`, the agreed daily rate, the declared value, all computed amounts and the three terms versions into the booking. Later setting, price or terms changes never alter that booking.
+- **Late fee: DEFERRED** (section 13). The `1.5` multiplier is approved as a setting, but no late-fee amount is calculated until the late-return policy is approved.
+- **Safety:** only controlled, authorised RPCs change booking status, money, settings, ledger status or privileged profile columns. SQL constraints and RLS are defence in depth. Every state-changing RPC checks identity, account status, role and current state, runs atomically, and returns only fields the caller may see. No RPC returns secrets, ID documents, code hashes or another person's private details.
+- **Payment honesty:** payments are manual (eSewa, Khalti or bank, by static QR, to the Sapati company account). Every payment screen shows **"Manual payment (prototype)"**. No gateway, escrow or insurance. An admin records payouts and refunds; the app executes none.
+- **Audit:** every admin change to settings, terms, users, KYC, orders and cases writes `audit_log` with actor, action, target, before and after.
+- **Error transport:** a failed RPC raises `RAISE EXCEPTION '<CODE>'` (SQLSTATE `P0001`), so the **message is the symbolic code** from section 11. Dart maps the message to `AppException(code)`. PostgREST delivery to a real client still needs one integration test before Phase 2 ends (section 12, item 13).
+- **Retry safety:** `create_booking_request` and `submit_payment_proof` accept an optional `p_idempotency_key uuid`. A repeat with the same key by the same caller and operation returns the original result. PLANNED for Phase 2 (section 12, item 12).
+
+## 2. Data model
+
+### 2.1 Tables
+
+| Table | Purpose | Status |
 | --- | --- | --- |
-| `profiles` | `id uuid`, `display_name text?`, `created_at timestamptz`, `updated_at timestamptz` | `id` references `auth.users(id) ON DELETE CASCADE`; signup trigger creates row; owner read/update policy |
-| `items` | `id uuid`, `lender_id uuid`, `title text`, `description text?`, `daily_rate numeric(12,2)`, `declared_value numeric(12,2)?`, `pickup_area text`, `status text`, `created_at`, `updated_at` | `status ∈ {draft, active, paused}`; positive rate; owner policies, active public read; unique `(id,lender_id)` |
-| `bookings` | `id uuid`, `item_id uuid`, `lender_id uuid`, `borrower_id uuid`, `start_date date`, `end_date date`, `status text`, `commission_rate numeric(5,4)`, `deposit_rate numeric(5,4)`, `terms_version_ids uuid[]`, `created_at`, `updated_at` | Composite FK `(item_id,lender_id)` → `items(id,lender_id)`, no self-booking, valid dates; participants may read; **no direct client booking write policies** |
-| `app_settings` | `key text PK`, `value jsonb`, `description text?`, `updated_at timestamptz` | RLS enabled; no client policies yet; **no approved seed values** |
-| `terms_documents` | `id uuid`, `title text`, `version text`, `content text`, `status text`, `created_at`, `published_at?` | Unique `(title,version)`; `draft/published/archived`; public read of published only |
+| `profiles` | Public-facing account state: `id`, `display_name`, `role` (`user`/`admin`), `status` (`active`/`suspended`/`deleted`), `kyc_status` (`none`/`pending`/`verified`/`rejected`), timestamps. `id` references `auth.users`. | IMPLEMENTED (+ DELTA: FK, `avatar_path`) |
+| `profile_private` | Owner and admin only: `user_id`, `phone`, `area`, `payout_details` (jsonb). | IMPLEMENTED (+ PLANNED `full_name`) |
+| `kyc_submissions` | `id_path`, `face_path`, `status`, `reason`, `reviewed_by`, timestamps. Admin read only. | IMPLEMENTED |
+| `items` | `id`, `lender_id`, `title`, `description`, `daily_rate`, `declared_value`, `pickup_area`, `status` (`draft`/`active`/`paused`), `category`, `condition`, `rules`, `photo_paths text[]` (1 to 5). | IMPLEMENTED (+ PLANNED `deleted_at`) |
+| `item_pickup_details` | Exact address and instructions. Owner and admin only until the booking gate opens. | IMPLEMENTED |
+| `bookings` | See 2.2. | IMPLEMENTED (+ DELTA `min_deposit_amount`) |
+| `terms_documents` | `audience`, `title`, `version`, `content`, `status`, `is_active`, `published_at`, `archived_at`. | IMPLEMENTED (+ PLANNED `reviewed_by`, `reviewed_at`) |
+| `booking_terms` | The three terms versions snapshotted on a booking: `(booking_id, audience, terms_document_id)`, one row per audience. | IMPLEMENTED |
+| `terms_acceptances` | `booking_id`, `user_id`, `role`, `terms_document_id`, `accepted_version`, `accepted_at` (server), `app_version`. Immutable. | IMPLEMENTED (+ DELTA: general terms row) |
+| `booking_payments` | `proof_path`, `reference`, `status` (`submitted`/`verified`/`rejected`), `amount_received`, `reason`, reviewer. | IMPLEMENTED (+ DELTA `channel`) |
+| `handover_records` | `stage` (`pickup`/`return`), item photos, checklist, borrower face and ID photo paths, `no_issues`, `note`. Admin read only. | IMPLEMENTED |
+| `booking_handover_codes` | `booking_id`, `nonce`, `code_hash`, `attempts`, `locked_at`, `used_at`, `reset_count`. Table name proposed; RPC behaviour in section 8 is the contract. | PLANNED |
+| `receipt_confirmations` | Borrower receipt and condition note. | IMPLEMENTED |
+| `damage_reports` | Renter claim: description, photo paths, `claimed_amount`, `status` (`open`/`resolved`/`escalated`), `escalated_at`. | IMPLEMENTED (+ PLANNED `escalated_at`) |
+| `ledger_entries` | `kind` (`lender_earning`/`deposit_refund`), `amount`, `status` (`on_hold`/`due`/`paid`), `reference`, `paid_at`. | IMPLEMENTED |
+| `app_settings` | `key`, `value jsonb`. Admin write through RPC only. | IMPLEMENTED (+ DELTA new key) |
+| `notifications` | Recipient-only `event`, `booking_id`, `read_at`; realtime. | IMPLEMENTED |
+| `audit_log` | Append through RPCs; admin read. | IMPLEMENTED |
+| `reports` | Reports against an item or user. | IMPLEMENTED |
+| `reviews` | Private foundation only; write contract is DEFERRED. | IMPLEMENTED (read only) |
+| `idempotency_keys` | `user_id`, `operation`, `key`, `result`. | PLANNED |
 
-**Double-booking SQL:** the GiST exclusion constraint `prevent_double_booking` applies to the *same item* and overlapping **inclusive** date ranges when status is `renter_accepted`, `awaiting_payment`, `payment_submitted`, `payment_verified`, `handed_over`, `returned` or `disputed`. `requested`, `declined`, `expired`, `cancelled`, `completed` do not block. Do not change this without joint review; blocked-date views must match it. An item may still be unavailable **beyond** original dates due to late return, damage or admin pause—requires separate checks.
+Helpers and views: `is_admin()`, `is_active_user()`, `can_rent()`, `item_is_public(item_id)`, view `admin_booking_attention`. They are policy helpers, not data projections.
 
-**Timestamp follow-up (written locally; validate actual migration history before deployment):** `20261124000000_add_updated_at_triggers.sql`, shared `set_updated_at()` function for `profiles`, `items`, `bookings`, `app_settings`. Keep this separate from the committed initial migration.
+### 2.2 `bookings` columns
 
-### 2.2 Plan-required schema extensions — **CHECK CURRENT LOCAL MIGRATION STATUS**
+Identity and dates: `id`, `item_id`, `lender_id`, `borrower_id`, `start_date`, `end_date`, `rental_days` (generated), `status` (one of the 12 below).
 
-The original baseline lacks the following structures. Follow-up migration files have subsequently been prepared locally; check `supabase/IMPLEMENTATION_STATUS.md` and actual tested SQL before treating any item as available in production:
+Snapshot (all set together or all null): `commission_rate`, `deposit_rate`, `min_deposit_amount` (DELTA), `agreed_daily_rate`, `declared_value_snapshot`, `rental_fee`, `deposit_amount`, `commission_amount`, `lender_earning`, `snapshot_recorded_at`. Immutable after creation. Legacy rows without a snapshot are never back-filled.
 
-- **Profile:** `full_name` / `first_name`, phone, area, avatar, payout details, role (`user/admin`), account status (`active/suspended/deleted`), KYC status (`none/pending/verified/rejected`), review reason and securely restricted ID document references. **DECIDE:** add/derive these alongside `display_name`; never silently rename existing column.
-- **Item:** category, condition, 1–5 photos, rules, visibility/area support, exact pickup address stored **separately** in `item_pickup_details` with gated access; keep `daily_rate`, `pickup_area`, `status` as the current schema names unless the team agrees to rename and migrate.
-- **Booking snapshot:** agreed whole-NPR daily rate (proposed `agreed_daily_rate`), `rental_days`, `declared_value_snapshot`, `rental_fee`, `deposit_amount`, `commission_amount`, `lender_earning`, optional late-fee rule snapshot, payment/receipt/evidence metadata, idempotency key, overdue derived flag, acceptance timestamps and decline reason. Keep existing `commission_rate`, `deposit_rate` field names unless an approved migration changes them.
-- **Terms:** three audiences (`general/borrower/renter`); exactly one active version per audience; immutable historical published text; relation to snapshotted terms. Add `terms_acceptances` with `booking_id`, `user_id`, `role`, `terms_document_id`, accepted version, `accepted_at` (server) and `app_version`. Current `terms_version_ids uuid[]` alone is **not sufficient**; keep temporarily and validate until an agreed relational/JSON replacement is implemented.
-- Supporting tables named by plan: `booking_payments`, `handover_records`, `damage_reports`, `ledger_entries`, `notifications`, `audit_log`, `reports`, `reviews`, `item_pickup_details`; protected handover-code data and other checks according to agreed design.
+Workflow: `expires_at`, `receipt_confirmed_at`, `returned_at`, `decline_reason`, `is_overdue` (derived flag set by a job, not a status), `terms_version_ids uuid[]` (kept for compatibility, validated against `booking_terms`).
 
-**Account deletion conflict:** committed `profiles.id → auth.users ON DELETE CASCADE`; plan requires profile/ledger retention and anonymisation. A safe deletion design needs **joint Mohan–Srijan decision** and a later migration before implementing `request_account_deletion`.
+**The 12 statuses** (no others): `requested`, `declined`, `expired`, `cancelled`, `renter_accepted`, `awaiting_payment`, `payment_submitted`, `payment_verified`, `handed_over`, `returned`, `completed`, `disputed`.
 
-## 3. Booking lifecycle — plan-aligned
+## 3. Business rules
 
-| Current | Action / RPC | Next | Caller and essential guards |
+### 3.1 Settings (`app_settings`, admin-set, never hard-coded)
+
+| Key | Type | Meaning | Initial value |
 | --- | --- | --- | --- |
-| new | `create_booking_request` | `requested` | Borrower; ID submitted/pending or verified; item active, no self-booking, no conflicting dates; snapshot rates and terms |
-| `requested` | `renter_decide_booking` reject | `declined` | Lender, eligible, correct current state |
-| `requested` | scheduled expiry | `expired` | System based on configured expiry |
-| `requested` | borrower cancel | `cancelled` | Borrower before payment; exact added RPC **TO APPROVE** |
-| `requested` | `renter_decide_booking` accept | `renter_accepted` | Lender ID submitted; renter terms accepted and version matches; dates still free |
-| `renter_accepted` | `admin_approve_order` or authorized auto-approval | `awaiting_payment` | Both IDs **verified**, neither suspended; auto-approve setting controls automated route |
-| `awaiting_payment` | `submit_payment_proof` | `payment_submitted` | Borrower terms accepted, matching version, manual proof and reference |
-| `payment_submitted` | `admin_verify_payment` approve | `payment_verified` | Admin confirms `rental_fee + deposit_amount`, prepares one-time handover code; unlocks contact only for booking parties |
-| `payment_submitted` | `admin_verify_payment` reject | `awaiting_payment` | Admin reason; borrower may resubmit |
-| `payment_verified` | `record_handover` | `handed_over` | Lender validates one-time code; item photos, checklist, borrower's original ID and face photo recorded |
-| `handed_over` | `confirm_receipt` | remains `handed_over` | Borrower confirms condition or flags concern to admin; record server timestamp |
-| `handed_over` | `record_return` | `returned` | Lender uploads return photos; issue or no-issue pathway |
-| `returned` | `settle_booking` | `completed` | Admin records fee/earnings/deposit refund, late fee if any, as ledger entries |
-| `returned` | `report_damage` | `disputed` | Lender evidence/claim; exact sequencing with admin resolution to confirm |
-| `returned`/`disputed` | `admin_resolve_case` | `completed` / case escalated | Admin decides deductions and records recoverable claims; escalation semantics **TO APPROVE** |
+| `commission_rate` | number 0–1, 4 dp | Sapati share of the rental fee | **0.1000** (approved) |
+| `deposit_rate` | number 0–1, 4 dp | Deposit as a share of declared value | **0.2000** (approved) |
+| `min_deposit_amount` | whole NPR ≥ 0 | Fixed minimum deposit for low-value items. Must be ≤ `min_declared_value`. | set by admin; not seeded |
+| `late_fee_multiplier` | number ≥ 0 | Late fee multiplier | **1.5** (approved; not applied yet) |
+| `return_grace_hours` | number ≥ 0 | Grace after `end_date` before a return is late or non-return | set by admin |
+| `legal_action_period_days` | number > 0 | Days before a non-return case is marked escalated | set by admin |
+| `request_expiry_hours` | number > 0 | Time before an unanswered request expires | set by admin |
+| `min_declared_value` | whole NPR ≥ 0 | Smallest declared value allowed for a listing | set by admin |
+| `auto_approve_orders` | boolean | Move to `awaiting_payment` automatically when both IDs are verified | set by admin |
 
-**Overdue** is a derived flag, **not** a booking status. Never show a status value outside the 12 already in the initial schema unless a migration and state-machine review change it.
+- Migrations seed only the three approved values. Anything unset makes the dependent RPC fail with `SETTING_UNAVAILABLE`; it never falls back to `0`.
+- Dev and demo databases may set the rest in `supabase/seed/seed.sql` (suggested: grace 24 h, legal period 14 days, expiry 48 h, minimum declared value 2,000, auto-approve on). Migrations must not.
+- Changes apply only to bookings created afterwards.
 
-## 4. API / RPC specifications
+### 3.2 ID verification gate (supervisor decision)
 
-**Status for all calls in this section: PLANNED, NOT DEPLOYED.** Parameter names use `p_` convention **proposed** by Smaran; final names must match implemented SQL exactly. All write RPCs validate caller identity and status, protect private information, perform state changes atomically, and do not trust caller-supplied money or role values. Return only caller-authorized fields (do **not** blindly `SELECT *` for sensitive entities).
+ID is required for everyone before the first request. The user submits an ID, an admin verifies or declines it, and once verified the request moves ahead.
 
-### 4.1 Borrower, renter and payment workflow
+| Moment | Rule |
+| --- | --- |
+| No ID submitted (`kyc_status = none`) | Blocks `create_booking_request`, publishing a listing and `renter_decide_booking` accept, with `KYC_REQUIRED`. |
+| ID submitted (`pending`) | The request can be created and the Renter can accept it. The order waits in the admin ID queue. No payment instructions are shown. |
+| Admin verifies | `admin_review_kyc` sets `verified`. When **both** parties are verified, the order moves to `awaiting_payment` (automatically if `auto_approve_orders` is on, otherwise through `admin_approve_order`). |
+| Admin declines | `admin_review_kyc` sets `rejected` with a reason. The user sees the reason and may resubmit. The order stays where it is and cannot reach payment. |
+| Stuck order | An admin may decline a waiting order with a reason (`admin_approve_order` with `p_approve = false`, result `cancelled`). |
 
-| RPC | Caller | Proposed arguments | Return | Errors / checks |
+"Verified" always means "checked by an admin". No automatic face matching is claimed.
+
+### 3.3 Payments
+
+- Channels: `esewa`, `khalti`, `bank`. The app shows a **static QR** for each; every payment goes to the Sapati company account, also in the demo.
+- The Borrower pays `rental_fee + deposit_amount`, uploads a screenshot and a payment reference, and selects the channel.
+- The admin compares the amount with the snapshot (`AMOUNT_MISMATCH` otherwise) and verifies or rejects with a reason. A rejected Borrower may resubmit.
+
+### 3.4 Shared money fixtures (`shared/fixtures/money_cases.json`)
+
+Dart `money.dart` and the SQL calculator must both match every row. Rates are given as basis points.
+
+| Case | Days | Daily | Declared | Comm bps | Dep bps | Min deposit | Fee | Deposit | Commission | Earning | Borrower pays |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| approved_three_days | 3 | 3,500 | 160,000 | 1000 | 2000 | 0 | 10,500 | 32,000 | 1,050 | 9,450 | 42,500 |
+| low_value_min_applies | 1 | 100 | 2,000 | 1000 | 2000 | 1,000 | 100 | 1,000 | 10 | 90 | 1,100 |
+| low_value_min_not_needed | 1 | 100 | 2,000 | 1000 | 2000 | 300 | 100 | 400 | 10 | 90 | 500 |
+| approved_boundary | 1 | 5 | 5 | 1000 | 2000 | 0 | 5 | 1 | 1 | 4 | 6 |
+| below_half | 1 | 4 | 2 | 1000 | 2000 | 0 | 4 | 0 | 0 | 4 | 4 |
+| above_half | 1 | 6 | 3 | 1000 | 2000 | 0 | 6 | 1 | 1 | 5 | 7 |
+
+Also required: invalid cases (zero days, negative, fractional, rate above 100%, overflow) must be rejected by both implementations. Late-fee cases are added when the policy is approved.
+
+## 4. Booking lifecycle
+
+Every transition is an RPC (or a scheduled job) that checks caller, current status and guards. The app never writes `status` directly.
+
+| # | From | Trigger | To | Caller and guards | Status |
+| --- | --- | --- | --- | --- | --- |
+| 1 | new | `create_booking_request` | `requested` | Borrower; ID submitted (`pending` or `verified`), not suspended; item active; not own item; dates free; settings and terms available; snapshot taken | IMPLEMENTED |
+| 2 | `requested` | `renter_decide_booking` (decline) | `declined` | Renter | IMPLEMENTED |
+| 3 | `requested` | scheduled expiry | `expired` | System after `request_expiry_hours` | IMPLEMENTED (job not scheduled) |
+| 4 | `requested` / `renter_accepted` / `awaiting_payment` | `cancel_booking` | `cancelled` | Borrower, before payment is submitted | PLANNED |
+| 5 | `requested` | `renter_decide_booking` (accept) | `renter_accepted` | Renter ID submitted; renter terms ticked and version matches snapshot; dates still free. Overlapping pending requests are auto-declined with reason `dates_taken`. | IMPLEMENTED (+ DELTA auto-decline) |
+| 6 | `renter_accepted` | auto-approval or `admin_approve_order` (approve) | `awaiting_payment` | Both IDs `verified`; neither user suspended | IMPLEMENTED |
+| 7 | `renter_accepted` | `admin_approve_order` (decline) | `cancelled` | Admin with reason | DELTA |
+| 8 | `awaiting_payment` | `submit_payment_proof` | `payment_submitted` | Borrower; borrower terms ticked and matching; proof file, reference and channel | IMPLEMENTED (+ DELTA `p_channel`) |
+| 9 | `payment_submitted` | `admin_verify_payment` (approve) | `payment_verified` | Admin; amount equals `rental_fee + deposit_amount`; handover code prepared; contact details unlock for the two parties | PLANNED |
+| 10 | `payment_submitted` | `admin_verify_payment` (reject) | `awaiting_payment` | Admin with reason; Borrower may resubmit | PLANNED |
+| 11 | `payment_verified` | `record_handover` | `handed_over` | Renter; correct unused code; item photos, checklist, Borrower face photo and original ID photo | PLANNED |
+| 12 | `handed_over` | `confirm_receipt` | stays `handed_over` | Borrower confirms or flags a concern to admin | IMPLEMENTED |
+| 13 | `handed_over` | `record_return` | `returned` | Renter; return photos; no-issues flag | IMPLEMENTED |
+| 14 | `handed_over` | scheduled job | `disputed` | System after `end_date + return_grace_hours` with no return; sets `is_overdue`; earning on hold | PLANNED |
+| 15 | `returned` | `report_damage` | stays `returned` | Renter files an open damage report with evidence; it appears in `admin_booking_attention` | IMPLEMENTED |
+| 16 | `returned` | `admin_resolve_case` (`open_dispute`) | `disputed` | Admin starts the review | PLANNED |
+| 17 | `returned` | `settle_booking` | `completed` | Admin; verified payment, evidence and terms present; no open case; returned on or before `end_date`; writes 2 ledger entries; idempotent | IMPLEMENTED (late returns return `LATE_RULE_NOT_APPROVED`) |
+| 18 | `returned` / `disputed` | `admin_resolve_case` (`no_deduction`, `deduct`, `escalate`) | `completed`, or case escalated | Admin decides a deduction up to the deposit; excess is a recoverable claim handled offline; `escalate` sets `escalated_at` after `legal_action_period_days` | PLANNED |
+
+**Overdue** is a derived flag, never a status. **Escalated** is a timestamp on the case, never a status.
+
+## 5. RPC specification
+
+Parameter names use the `p_` prefix. Every RPC is `SECURITY DEFINER` with an empty `search_path`, granted to `authenticated` only (never `anon`), and returns a narrow JSON object.
+
+### 5.1 The 16 plan RPCs
+
+| RPC | Caller | Arguments | Returns | Errors | Status |
+| --- | --- | --- | --- | --- | --- |
+| `create_booking_request` | Borrower | `p_item_id uuid`, `p_start_date date`, `p_end_date date`, `p_idempotency_key uuid?` | Booking summary with snapshots | `NOT_AUTHENTICATED`, `ACCOUNT_RESTRICTED`, `KYC_REQUIRED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_DATES`, `DATES_TAKEN`, `DUPLICATE_REQUEST`, `SETTING_UNAVAILABLE`, `TERMS_UNAVAILABLE`, `INVALID_MONEY` | IMPLEMENTED (+ DELTA idempotency, min deposit, open-ended availability) |
+| `renter_decide_booking` | Renter of the booking | `p_booking_id uuid`, `p_accept boolean`, `p_terms_accepted boolean`, `p_terms_id uuid?`, `p_reason text?`, `p_app_version text?` | `{id, status}` | `NOT_ALLOWED`, `INVALID_STATE`, `KYC_REQUIRED`, `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `DATES_TAKEN`, `ITEM_UNAVAILABLE` | IMPLEMENTED |
+| `admin_approve_order` | Admin | `p_booking_id uuid`, `p_approve boolean`, `p_reason text?` | `{id, status}` | `NOT_ADMIN`, `INVALID_STATE`, `KYC_NOT_VERIFIED`, `REASON_REQUIRED` | DELTA (decline path) |
+| `submit_payment_proof` | Borrower | `p_booking_id uuid`, `p_terms_accepted boolean`, `p_terms_id uuid`, `p_proof_path text`, `p_reference text`, `p_channel text`, `p_app_version text?`, `p_idempotency_key uuid?` | `{id, status, payment_id}` | `NOT_ALLOWED`, `INVALID_STATE`, `KYC_NOT_VERIFIED`, `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `PROOF_MISSING`, `INVALID_VALUE` | DELTA (`p_channel`) |
+| `admin_verify_payment` | Admin | `p_booking_id uuid`, `p_approve boolean`, `p_amount_received integer`, `p_reason text?` | `{id, status, payment_status}`; never the code | `NOT_ADMIN`, `INVALID_STATE`, `AMOUNT_MISMATCH`, `REASON_REQUIRED` | PLANNED |
+| `record_handover` | Renter of the booking | `p_booking_id uuid`, `p_code text`, `p_item_photo_paths text[]`, `p_checklist jsonb`, `p_borrower_face_path text`, `p_borrower_id_photo_path text` | `{id, status, handover_id}` | `NOT_ALLOWED`, `INVALID_STATE`, `CODE_INVALID`, `CODE_LOCKED`, `CODE_USED`, `EVIDENCE_MISSING` | PLANNED |
+| `confirm_receipt` | Borrower | `p_booking_id uuid`, `p_ok boolean`, `p_note text?` | `{id, status, receipt_confirmed_at, condition_ok}` | `NOT_ALLOWED`, `INVALID_STATE`, `NOTE_REQUIRED`, `INVALID_VALUE` | IMPLEMENTED |
+| `record_return` | Renter | `p_booking_id uuid`, `p_return_photo_paths text[]`, `p_no_issues boolean`, `p_note text?` | `{id, status, returned_at}` | `NOT_ALLOWED`, `INVALID_STATE`, `EVIDENCE_MISSING` | IMPLEMENTED |
+| `report_damage` | Renter | `p_booking_id uuid`, `p_description text`, `p_photo_paths text[]`, `p_claimed_amount integer` | `{report_id, status, booking_status}` | `NOT_ALLOWED`, `INVALID_STATE`, `EVIDENCE_MISSING`, `INVALID_VALUE` | IMPLEMENTED |
+| `settle_booking` | Admin | `p_booking_id uuid` | `{id, status, already_settled, ledger[]}` | `NOT_ADMIN`, `INVALID_STATE`, `OPEN_CASE_EXISTS`, `PAYMENT_NOT_VERIFIED`, `HANDOVER_MISSING`, `RETURN_EVIDENCE_MISSING`, `TERMS_NOT_ACCEPTED`, `LATE_RULE_NOT_APPROVED`, `LEDGER_MISMATCH` | IMPLEMENTED |
+| `admin_resolve_case` | Admin | `p_booking_id uuid`, `p_decision text` (`open_dispute`, `no_deduction`, `deduct`, `escalate`), `p_deduction_amount integer?`, `p_note text` | Decision, booking status, ledger summary | `NOT_ADMIN`, `INVALID_STATE`, `INVALID_VALUE`, `NOTE_REQUIRED` | PLANNED |
+| `admin_review_kyc` | Admin | `p_user_id uuid`, `p_decision text` (`verified`/`rejected`), `p_reason text?` | `{user_id, kyc_status}` | `NOT_ADMIN`, `INVALID_VALUE`, `REASON_REQUIRED`, `INVALID_STATE`, `EVIDENCE_MISSING` | IMPLEMENTED |
+| `admin_update_setting` | Admin | `p_key text`, `p_value jsonb` | `{key, previous_value, value}` | `NOT_ADMIN`, `INVALID_KEY`, `INVALID_VALUE` | IMPLEMENTED (+ DELTA `min_deposit_amount`) |
+| `admin_publish_terms` | Admin | `p_audience text`, `p_body text` | `{id, version, audience}` | `NOT_ADMIN`, `INVALID_VALUE` | IMPLEMENTED |
+| `admin_set_user_status` | Admin | `p_user_id uuid`, `p_status text` (`active`/`suspended`), `p_reason text` | `{user_id, status}` | `NOT_ADMIN`, `CANNOT_TARGET_ADMIN`, `REASON_REQUIRED`, `INVALID_STATE`, `INVALID_VALUE` | IMPLEMENTED |
+| `request_account_deletion` | Account owner | none | `{ok: true}` | `NOT_AUTHENTICATED`, `ACTIVE_BOOKINGS_EXIST`, `OPEN_CASE_EXISTS` | PLANNED |
+
+### 5.2 Supplemental RPCs (approved names)
+
+| RPC | Caller | Arguments | Returns | Status |
 | --- | --- | --- | --- | --- |
-| `create_booking_request` | Borrower | `p_item_id uuid`, `p_start_date date`, `p_end_date date`, `p_idempotency_key uuid?` **[proposed]** | Authorized booking summary + agreed snapshots | `NOT_AUTHENTICATED`, `ACCOUNT_RESTRICTED`, `KYC_REQUIRED`, `OWN_ITEM`, `ITEM_UNAVAILABLE`, `INVALID_DATES`, `DATES_TAKEN`, `DUPLICATE_REQUEST`, `SETTING_UNAVAILABLE`, `TERMS_UNAVAILABLE`; server snapshots rates, terms, amounts |
-| `renter_decide_booking` | Lender for booking | `p_booking_id uuid`, `p_accept bool`, `p_terms_accepted bool`, `p_terms_id uuid?`, `p_reason text?`, `p_app_version text?` | Updated authorized booking summary | `NOT_ALLOWED`, `INVALID_STATE`, `KYC_REQUIRED`, `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `DATES_TAKEN`; record acceptance; if both verified and allowed, auto-advance |
-| `admin_approve_order` | Admin | `p_booking_id uuid`, `p_approve bool`, `p_reason text?` | Updated booking/admin decision | `NOT_ADMIN`, `INVALID_STATE`, `KYC_NOT_VERIFIED`, `REASON_REQUIRED` |
-| `submit_payment_proof` | Borrower | `p_booking_id uuid`, `p_terms_accepted bool`, `p_terms_id uuid`, `p_proof_path text`, `p_reference text`, `p_app_version text?`, `p_idempotency_key uuid?` **[proposed]** | Booking summary + proof submission reference | `NOT_ALLOWED`, `INVALID_STATE`, `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `PROOF_MISSING` |
-| `admin_verify_payment` | Admin | `p_booking_id uuid`, `p_approve bool`, `p_amount_received integer`, `p_reason text?` | Booking status, payment decision; **never hash/code value to admin** | `NOT_ADMIN`, `INVALID_STATE`, `AMOUNT_MISMATCH`, `REASON_REQUIRED`; create secure, hashed one-time code; delivery scheme **TO DECIDE** |
-| `record_handover` | Lender for booking | `p_booking_id uuid`, `p_code text`, `p_item_photo_paths text[]`, `p_checklist jsonb`, `p_borrower_face_path text`, `p_borrower_id_photo_path text` | Booking + handover summary | `NOT_ALLOWED`, `INVALID_STATE`, `CODE_INVALID`, `CODE_LOCKED`, `CODE_USED`, `EVIDENCE_MISSING`; five-attempt lock, server validation |
-| `confirm_receipt` | Borrower | `p_booking_id uuid`, `p_ok bool`, `p_note text?` | Booking receipt result | `NOT_ALLOWED`, `INVALID_STATE`, `NOTE_REQUIRED`; status remains `handed_over` |
-| `record_return` | Lender | `p_booking_id uuid`, `p_return_photo_paths text[]`, `p_no_issues bool`, `p_note text?` | Updated booking + return summary | `NOT_ALLOWED`, `INVALID_STATE`, `EVIDENCE_MISSING` |
-| `report_damage` | Lender | `p_booking_id uuid`, `p_description text`, `p_photo_paths text[]`, `p_claimed_amount integer` | Report reference and status | `NOT_ALLOWED`, `INVALID_STATE`, `EVIDENCE_MISSING`, `INVALID_VALUE`; escalation path requires admin review |
-| `settle_booking` | Admin | `p_booking_id uuid`, optional `p_returned_at timestamptz?` **[review]** | Status + ledger summaries | `NOT_ADMIN`, `INVALID_STATE`, `OPEN_CASE_EXISTS`; payout/refund only recorded, not transferred |
-| `admin_resolve_case` | Admin | `p_booking_id uuid`, `p_decision text`, `p_deduction_amount integer?`, `p_note text` | Decision, booking status + ledger summaries | `NOT_ADMIN`, `INVALID_STATE`, `INVALID_VALUE`, `NOTE_REQUIRED`; excess claims handled offline |
+| `submit_kyc` | User | `p_id_path text`, `p_face_path text` | `{submission_id, kyc_status}`. Both files must be the caller's own uploads in the `kyc` bucket and different from each other. | IMPLEMENTED |
+| `get_my_kyc_status` | User | none | `{kyc_status, reason, submitted_at, reviewed_at}`; never file paths; `reason` only when rejected | IMPLEMENTED |
+| `cancel_booking` | Borrower | `p_booking_id uuid`, `p_reason text?` | `{id, status}` | PLANNED |
+| `get_blocked_dates` | Signed-in user | `p_item_id uuid` | Unavailable ranges `[{start_date, end_date}]` plus `blocked_from date?` for the open-ended case (section 6). No user ids. | PLANNED |
+| `get_booking_contact` | Booking parties, admin | `p_booking_id uuid` | `{first_name, area, unlocked, phone?, exact_address?}`. Always returns first name and area; phone and address are null until `payment_verified`. No `CONTACT_LOCKED` error here. | PLANNED |
+| `get_active_terms` | Signed-in user | `p_audience text` | `{id, audience, version, content, published_at}` | PLANNED |
+| `get_handover_code` | Borrower only | `p_booking_id uuid` | `{code}` six digits; only in `payment_verified`, not used, not locked | PLANNED |
+| `admin_reset_handover_code` | Admin | `p_booking_id uuid`, `p_reason text` | `{booking_id, reset_count}` | PLANNED |
+| `admin_mark_ledger_paid` | Admin | `p_ledger_entry_id uuid`, `p_reference text`, `p_proof_path text?` | `{id, status, paid_at}` | PLANNED |
+| `get_public_settings` | Signed-in user | none | Whitelisted keys only: `commission_rate`, `deposit_rate`, `min_deposit_amount`, `late_fee_multiplier`, `return_grace_hours`, `request_expiry_hours`, `min_declared_value` | PLANNED |
 
-### 4.2 Admin/platform and account RPCs
+### 5.3 Direct reads (RLS, no RPC)
 
-| RPC | Caller | Proposed arguments | Return | Essential validation |
-| --- | --- | --- | --- | --- |
-| `admin_review_kyc` | Admin | `p_user_id uuid`, `p_decision text`, `p_reason text?` | Sanitized profile/KYC outcome | Pending ID; rejection reason; audit; private docs only via short-lived signed URL |
-| `admin_update_setting` | Admin | `p_key text`, `p_value jsonb` | Key, previous and new value | Whitelist keys/types/ranges; audit; impacts **new requests only** |
-| `admin_publish_terms` | Admin | `p_audience text`, `p_body text` | New terms ID/version | `general/borrower/renter`; version increment, preserve historical text, audit |
-| `admin_set_user_status` | Admin | `p_user_id uuid`, `p_status text`, `p_reason text` | Sanitized status result | Suspended/reactivated/deleted controls; safeguards against targeting admin; audit |
-| `request_account_deletion` | Account owner | No parameters | `{ok:true}` or safe request status | Block unresolved bookings/cases; secure deletion+retention design **MUST BE AGREED** (current FK cascades) |
-
-**Original plan's 16 RPC names are all included above.** Full additional SQL/PgREST signatures should be frozen only after Srijan verifies the corresponding migrations. No unapproved RPC is part of the mandatory 16-name list.
-
-### 4.3 Reads and proposed supplemental endpoints
-
-| Read/action | Current or planned | Access and expected payload |
+| Read | Who | Notes |
 | --- | --- | --- |
-| Explore `items` table | Initial active-listing RLS exists | Public active items: `id`, `title`, `daily_rate`, `pickup_area`, etc.; extra category/photos fields require migration. Do not expose private pickup address. |
-| My bookings `bookings` table | Participant RLS exists | Only lender or borrower sees own bookings. Full money/contact projections require secure field policies/views. |
-| `get_blocked_dates(p_item_id)` | **PROPOSED RPC** | Returns only unavailable date ranges, no user IDs, matching `prevent_double_booking`, and any additional item restrictions |
-| `get_booking_contact(p_booking_id)` | **PROPOSED RPC / restricted view** | Only two booking parties (or admin) after `payment_verified`; reveals necessary phone and exact pickup location only |
-| `get_active_terms(p_audience)` | **PROPOSED RPC/view** | Returns active published terms for requested audience; historic accepted version readable to parties via safe view |
-| Borrower cancellation | **NEEDS RPC NAME APPROVAL** | Plan permits cancellation before payment; v0.1 proposed `cancel_booking`; reconcile whether allowed from all prepayment states |
-| Payout status recording | **NEEDS RPC NAME APPROVAL** | Plan requires admin to mark offline payout/refund; proposed `admin_mark_ledger_paid` |
-| Handover-code display/delivery | **DESIGN OPEN** | Plan requires code shown only to Borrower, hash at rest, five-attempt lock; **do not adopt v0.1 plaintext `get_handover_code` proposal** |
-| Own notifications and ledger | Future tables/RLS | Filter by authenticated user, protect private/admin data, realtime where supported |
+| `items` | Anyone: active items of active, eligible owners. Owner: own items. Admin: all. | Never includes the exact pickup address. |
+| `bookings` | Borrower, Renter of the booking, admin | Own bookings only. Phone and address come only from `get_booking_contact`. |
+| `booking_terms`, `terms_acceptances`, `terms_documents` | Parties of the booking and admin; anyone for published terms | Parties can re-read the version they accepted, including archived text. |
+| `profile_private` | Owner and admin | Never another user's. |
+| `notifications` | Recipient only (`read_at` writable) | Realtime. |
+| `ledger_entries` | Entry owner and admin | |
+| `booking_payments` | The Borrower who submitted and admin | The Renter never sees payment proof. |
+| `reports` | Reporter (insert, read own) and admin | |
 
-## 5. Settings and shared money fixtures
+Admin SELECT policies (through `is_admin()`) exist for profiles, profile_private, kyc_submissions, items, bookings, booking_payments, handover_records, damage_reports, ledger_entries, app_settings, terms_documents, audit_log and reports. Admin writes go only through RPCs.
 
-**Required settings keys in the plan:** `commission_rate`, `deposit_rate`, `late_fee_multiplier`, `return_grace_hours`, `legal_action_period_days`, `request_expiry_hours`, `min_declared_value`, `auto_approve_orders`.
+## 6. Availability rules
 
-- **Team-approved initial settings:** `deposit_rate = 0.2000` (20%), `commission_rate = 0.1000` (10%), `late_fee_multiplier = 1.5` (or `150` only within an explicitly x100 Dart representation). Rates remain editable only by authorized admins; bookings snapshot values at creation. These three values were confirmed by Mohan in the group chat. The grace period, request expiry, legal-action period, minimum declared value and auto-approval flag remain unapproved pending separate decisions. Do not use the old 25% example or seed unapproved values.
-- **Approved representation:** keep SQL settings keys `commission_rate`, `deposit_rate`, `late_fee_multiplier` and fractional numeric values for percentage rates. Dart uses `depositRateBps = 2000`, `commissionRateBps = 1000`, `lateFeeMultiplierX100 = 150`; conversions occur at the repository boundary, not by silently changing SQL field names.
-- Request RPC reads settings and validates expected types/ranges. Missing or malformed mandatory settings should produce an explicit error rather than falling back to `0` silently.
-- Booking snapshots are immutable after creation (except permitted status and evidence workflow fields); later item-price or admin-setting changes never rewrite old booking values.
-- Srijan's SQL calculations and Smaran's `money.dart` **must pass the same shared cases**: 3-day approved-rate example (NPR 3,500/day, declared NPR 160,000, **20% deposit**, **10% commission** → fee 10,500; deposit 32,000; commission 1,050; lender earning 9,450; borrower total **42,500**); one-day and edge-case rounding; invalid date/declared value; late/damage cases after rules approved.
-- Late fees follow plan's *intent* (late return, deposit deduction and renter earning adjustment), but exact calculation/rounding/cap and grace-period interaction remain decisions requiring sign-off.
+- `prevent_double_booking` (GiST exclusion) is kept exactly as committed. It blocks overlapping inclusive ranges for the same item in `renter_accepted`, `awaiting_payment`, `payment_submitted`, `payment_verified`, `handed_over`, `returned` and `disputed`. `requested`, `declined`, `expired`, `cancelled` and `completed` do not block.
+- `returned` keeps blocking its original dates until the admin completes the booking. `completed` releases them.
+- Many `requested` bookings may coexist. The first accept wins; accepting one auto-declines overlapping pending requests with reason `dates_taken`, and a second accept fails with `DATES_TAKEN`.
+- **Open-ended block:** the constraint cannot say "from today onward". So `create_booking_request` and `get_blocked_dates` also treat an item as unavailable from today while it has an overdue `handed_over` booking or any `disputed` booking.
+- Pausing an item blocks new requests only. Existing accepted bookings continue.
+- Deleting an item is a soft delete (`deleted_at`). It is refused while an accepted-or-later booking exists; pending requests are auto-declined.
+- **Cancellation:** the Borrower may cancel from `requested`, `renter_accepted` and `awaiting_payment`, never from `payment_submitted`. The Renter may decline only from `requested`.
 
-## 6. Storage and privacy
+## 7. Terms acceptance
 
-**Four buckets already created:** `item-photos` (public), `kyc` (private), `handover` (private), `payment-proof` (private). **Do not rename them** without coordinated migration and code updates. v0.1's extra `avatars`/`damage` buckets are **PROPOSED**, not in the existing Phase 0 migration.
+- Three audiences: `general`, `borrower`, `renter`. Exactly **one published and active version per audience** (partial unique index). Publishing a new version archives the previous one. Published and archived text is immutable.
+- `create_booking_request` snapshots the three active versions into `booking_terms` (one row per audience). This is the canonical snapshot; `terms_version_ids` remains only for compatibility.
+- **Renter tick:** inside `renter_decide_booking` (accept), after tapping Accept. **Borrower tick:** inside `submit_payment_proof`, before the proof is accepted. Each tick is one checkbox covering the role terms and the general terms.
+- Each tick records an immutable `terms_acceptances` row with user, booking, terms id, accepted version, server time and app version. The server rejects the step when the flag is false or the document id is not the one snapshotted on the booking.
+- A tick is a recorded acceptance, not a certified e-signature.
+- Sapati's legal team reviews wording. `reviewed_by` and `reviewed_at` on `terms_documents` record the sign-off; terms stay labelled "Prototype terms, not legal advice" until then.
 
-- Item photos: current policies permit public reads and owner-folder uploads; plan calls for images under 5 MB, 1–5 listing photos and upload validation. Not yet fully enforced.
-- KYC: user uploads in own path; ID inspection restricted to authorized admin with short-lived signed URLs, consent and retention notice; never expose raw ID path in public profile.
-- Handover: borrower original ID, face and item evidence must be **admin-only readable**; current own-folder SELECT policy is a temporary gap requiring review and migration, not a completed requirement.
-- Payment proof: borrower upload; authorized admins verify; other-party visibility needs explicit decision and constrained signed access.
-- Exact pickup address and phone are **server-gated** until `payment_verified` or later, only booking parties/admin. Do not rely on hiding Flutter widgets.
-- Code: generate six random digits after payment verification; **store only verifier/hash**, rate limit and lock after five invalid attempts, enforce single use. **Delivery of plaintext code to only the Borrower remains unresolved** (one-time secure delivery or separately encrypted authorized delivery); do not implement plaintext code database persistence as a shortcut.
+## 8. Handover code
 
-## 7. Standard error codes (draft protocol)
+- Generated when the admin approves a payment. The six-digit code is **derived**: `HMAC-SHA256(secret, booking_id || nonce)` read as a decimal number modulo 1,000,000, zero-padded. The secret lives in Supabase Vault and is readable only by security-definer functions. The plaintext code is never stored.
+- `booking_handover_codes` stores the `nonce`, a `code_hash` (verifier), `attempts`, `locked_at`, `used_at` and `reset_count`.
+- `get_handover_code` is callable only by the Borrower of the booking, only in `payment_verified`, and returns the derived code. The admin has no way to read it.
+- `record_handover` recomputes and compares in constant time. A wrong code increments `attempts`; the fifth failure sets `locked_at` and returns `CODE_LOCKED`. Success sets `used_at`; a second use returns `CODE_USED`.
+- `admin_reset_handover_code` rotates the nonce, clears `attempts` and `locked_at`, increments `reset_count` and audits the action.
+- pgTAP must cover: wrong code, lock at five, reuse rejected, admin cannot read the code, non-Borrower cannot read it.
+
+## 9. Account deletion and retention
+
+- `profiles.id → auth.users ON DELETE CASCADE` is **dropped** in a follow-up migration so deleting the auth user cannot delete the profile.
+- `request_account_deletion` refuses with `ACTIVE_BOOKINGS_EXIST` or `OPEN_CASE_EXISTS`. Otherwise it **anonymises** the profile: `display_name` becomes "Deleted user"; name, phone, area, avatar, payout details and KYC paths are cleared; KYC files are removed; items are soft-deleted; `status` becomes `deleted`.
+- The `delete-user` Edge Function then deletes the auth user, using the service-role key from Edge Function secrets only.
+- Bookings, ledger entries and audit rows keep pointing at the anonymised profile id.
+- Handover ID and face photos follow the retention job (deleted a set number of days after an undisputed completion, never while a case is open). Sapati's legal team confirms the periods.
+- Admin accounts cannot self-delete.
+
+## 10. Storage and privacy
+
+| Bucket | Visibility | Rule |
+| --- | --- | --- |
+| `item-photos` | public read | Path `<user_id>/<file>`; images only, under 5 MB; owner writes; referenced photos cannot be overwritten or deleted. |
+| `avatars` | public read | PLANNED. Owner folder write, small images. |
+| `kyc` | private | Path `<user_id>/<file>`; owner uploads; **admin read only**. |
+| `handover` | private | Path `<uploader_id>/<booking_id>/<file>`; the Renter uploads during `payment_verified` or later; **admin read only**. Damage photos use the same bucket under a `damage/` file prefix. |
+| `payment-proof` | private | Path `<borrower_id>/<booking_id>/<file>`; the Borrower uploads while `awaiting_payment` or `payment_submitted`; readable by the uploader and admin, never the Renter. |
+
+- All buckets accept JPEG, PNG and WebP only, 5 MiB maximum.
+- Private files are served only by short-lived signed URLs. Location metadata is stripped before upload.
+- Phone numbers and exact pickup addresses are **server-gated** until `payment_verified`, for the two parties and admins only. Hiding widgets is never enough.
+- Until `payment_verified`: the Borrower sees the item, its area and the Renter's first name; the Renter sees the Borrower's first name.
+- Secrets: the apps use only the anon key. The service-role key exists only in Edge Function secrets and the lead's password manager.
+
+## 11. Error codes
 
 | Code | Meaning |
 | --- | --- |
-| `NOT_AUTHENTICATED`, `ACCOUNT_RESTRICTED` | Authentication missing / user suspended or deleted |
-| `NOT_ALLOWED`, `NOT_ADMIN`, `CANNOT_TARGET_ADMIN` | Caller not a party / admin / prohibited admin target |
-| `KYC_REQUIRED`, `KYC_NOT_VERIFIED` | ID not submitted / not both approved for payment |
-| `INVALID_STATE`, `ITEM_UNAVAILABLE`, `OWN_ITEM` | Invalid transition, paused item, self-booking |
-| `INVALID_DATES`, `DATES_TAKEN`, `DUPLICATE_REQUEST` | Bad dates, overlapping reserved dates, duplicate pending request |
-| `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `TERMS_UNAVAILABLE` | Missing acceptance, wrong saved version, no valid terms |
-| `PROOF_MISSING`, `AMOUNT_MISMATCH` | Proof missing or verified total differs from snapshots |
-| `CODE_INVALID`, `CODE_LOCKED`, `CODE_USED` | Wrong, locked or previously used code |
-| `EVIDENCE_MISSING`, `NOTE_REQUIRED`, `REASON_REQUIRED` | Missing required evidence or explanation |
-| `OPEN_CASE_EXISTS`, `ACTIVE_BOOKINGS_EXIST` | Restricted settlement or deletion |
-| `CONTACT_LOCKED` | Contact and exact address not yet unlocked |
-| `INVALID_KEY`, `INVALID_VALUE`, `SETTING_UNAVAILABLE` | Invalid/missing administrative configuration |
+| `NOT_AUTHENTICATED`, `ACCOUNT_RESTRICTED` | Not signed in / suspended or deleted account |
+| `NOT_ALLOWED`, `NOT_ADMIN`, `CANNOT_TARGET_ADMIN` | Not a party / not an admin / admin target forbidden |
+| `KYC_REQUIRED`, `KYC_NOT_VERIFIED` | No ID submitted / not both verified |
+| `INVALID_STATE`, `ITEM_UNAVAILABLE`, `OWN_ITEM` | Wrong status for the action / item not bookable / own item |
+| `INVALID_DATES`, `DATES_TAKEN`, `DUPLICATE_REQUEST` | Bad range / dates reserved / identical live request |
+| `TERMS_NOT_ACCEPTED`, `TERMS_VERSION_MISMATCH`, `TERMS_UNAVAILABLE` | Tick missing / not the snapshotted version / no published terms |
+| `PROOF_MISSING`, `AMOUNT_MISMATCH` | No proof file / amount differs from the snapshot |
+| `CODE_INVALID`, `CODE_LOCKED`, `CODE_USED` | Wrong, locked or already-used handover code |
+| `EVIDENCE_MISSING`, `NOTE_REQUIRED`, `REASON_REQUIRED` | Required files or text missing |
+| `OPEN_CASE_EXISTS`, `ACTIVE_BOOKINGS_EXIST` | Settlement or deletion blocked |
+| `CONTACT_LOCKED` | Reserved. Direct address or phone requests before the gate opens. |
+| `INVALID_KEY`, `INVALID_VALUE`, `INVALID_MONEY`, `SETTING_UNAVAILABLE` | Bad setting, input or money value / required setting missing |
 
-**Error-code names and database exception transport are pending implementation tests**, not evidence that these RPCs currently raise them.
+Internal integrity codes may also appear. Clients show a generic message for them and log the code: `INVALID_SNAPSHOT`, `SNAPSHOT_IMMUTABLE`, `TERMS_SNAPSHOT_INCOMPLETE`, `TERMS_IMMUTABLE`, `LEGACY_RECONCILIATION_REQUIRED`, `PAYMENT_NOT_VERIFIED`, `HANDOVER_MISSING`, `RETURN_EVIDENCE_MISSING`, `LEDGER_MISMATCH`, `LATE_RULE_NOT_APPROVED`.
 
-## 8. Ownership and integration checklist
+`ORDER_REJECTION_NOT_APPROVED` and `DELETION_NOT_APPROVED` exist in the current SQL and are **retired** by section 12 items 2 and 9.
 
-| Owner | Required next actions |
+## 12. Implementation deltas to close (Srijan unless stated)
+
+The target is this contract. These changes bring the code on `srijan/backend` into line. Each becomes a follow-up migration or test; the initial migration is never edited.
+
+| # | Delta | Owner |
+| --- | --- | --- |
+| 1 | Add `min_deposit_amount` to the `app_settings` whitelist, to `calculate_money`, to the booking snapshot columns and validity check, and add the rule `min_deposit_amount ≤ min_declared_value` in `admin_update_setting`. | Srijan |
+| 2 | `admin_approve_order` with `p_approve = false`: cancel the booking with the reason instead of `ORDER_REJECTION_NOT_APPROVED`. | Srijan |
+| 3 | `submit_payment_proof`: add `p_channel` and `booking_payments.channel` (`esewa`/`khalti`/`bank`). | Srijan |
+| 4 | Record the general-terms acceptance with the same tick (second `terms_acceptances` row, role-compatible). | Srijan |
+| 5 | Open-ended availability check in `create_booking_request` and the new `get_blocked_dates`; auto-decline overlapping requests on accept. | Srijan |
+| 6 | Implement `admin_verify_payment`, the handover code table and RPCs (section 8), and `record_handover`. | Srijan |
+| 7 | Implement `admin_resolve_case` (`open_dispute`, `no_deduction`, `deduct`, `escalate`) and `damage_reports.escalated_at`. | Srijan |
+| 8 | Implement `cancel_booking`, `get_booking_contact`, `get_active_terms`, `admin_mark_ledger_paid`, `get_public_settings`. | Srijan |
+| 9 | Drop the `profiles` → `auth.users` cascade and implement `request_account_deletion`. | Srijan |
+| 10 | Scheduled jobs: expire requests, flag overdue, `handed_over → disputed` after grace, retention. | Srijan |
+| 11 | Add `items.deleted_at`, `profiles.avatar_path`, `profile_private.full_name`, `terms_documents.reviewed_by` and `reviewed_at`, and the `avatars` bucket. | Srijan |
+| 12 | Add `idempotency_keys` and the optional key arguments (Phase 2). | Srijan |
+| 13 | Test error delivery through a real PostgREST client and confirm the message-equals-code convention. | Srijan + Smaran |
+| 14 | Models and repository interfaces for Booking, Item, Profile, Ledger and Terms matching sections 2 to 5; `money.dart` and `money_cases.json` matching 1 and 3.4. | Smaran |
+| 15 | Admin gate, ID queue, settings and terms screens built on the repository interfaces, with a "Minimum security deposit (NPR)" field. | Mohan |
+
+## 13. Deferred (not part of the freeze)
+
+- **Late-return policy:** late-day calculation, grace interaction, fee cap and where the fee goes. Proposed only: `late_days x agreed_daily_rate x late_fee_multiplier`, rounded half up, capped at the deposit, deducted from the deposit and paid entirely to the Renter. Needs supervisor approval. Until then `settle_booking` rejects late returns. Add the cases to the fixtures when approved (contract change, v1.1).
+- **Reviews:** rating scale, public visibility and the write contract.
+- **Notifications beyond booking events**, reminders and push.
+- **Real payment gateway, escrow, insurance, automated KYC**, in-app chat, Nepali language, iOS release (future work in the report).
+
+## 14. Ownership, approval and change log
+
+| Owner | Responsibility under this contract |
 | --- | --- |
-| **Srijan** | Keep original migration; apply/test `updated_at` follow-up; propose compatible schema changes for profile/KYC, financial snapshots, terms acceptances, settings validation, storage and RPCs; preserve composite booking-owner FK; write pgTAP/security tests; update `docs/data-model.md`/`docs/security.md`. |
-| **Smaran** | Treat v0.3 as the *draft shared interface*; adapt handwritten `Booking`, `Item`, `Profile`, `Ledger`, `Terms` models and repository interfaces to **agreed field names and pending migrations**; write `money.dart` and `shared/fixtures/money_cases.json`; test whole-NPR calculations; build borrower features initially using fakes; don't call unimplemented RPCs as live. |
-| **Mohan** | Review the plan's business defaults, commission and deposit, late-fee/cancellation policy, KYC gates, handover-code delivery, account-retention design, additional RPCs, profile/private data and term versions; approve contract and main-branch merge gate. |
+| **Srijan** | Section 12 items 1 to 13 on `srijan/backend`; pgTAP and security tests; `docs/data-model.md`, `docs/security.md`, `docs/state-machine.md`. |
+| **Smaran** | Models, repository interfaces, `money.dart`, `shared/fixtures/money_cases.json`; Borrower features on fakes until RPCs are merged; do not call PLANNED RPCs as live. |
+| **Mohan** | Auth, profile and ID gate, admin panel; CODEOWNERS and merge gates; freeze process. |
 
-### Freeze gates
+### Freeze approval
 
-- [ ] Mohan, Smaran, Srijan approve exactly **one** `docs/api-contract.md`.
-- [ ] Canonical non-money field names agreed; **money representation and three approved rates are resolved**, but Dart/SQL fixtures and integrated tests must verify parity.
-- [ ] All 16 required RPCs documented, with parameters, return schemas, errors and allowed transitions; mark implemented vs future as development proceeds.
-- [ ] Three terms audiences, two acceptance ticks, contact privacy and hashed handover code have secure agreed designs.
-- [ ] Corresponding models and first migration are merged, CI green (Phase 0 implementation-plan gate).
-- [ ] No demo credentials or service-role secrets committed.
+- [ ] Mohan approves
+- [ ] Smaran approves
+- [ ] Srijan approves
+- [ ] Tag `api-contract-v1.0` created after merge
 
-## 9. Explicit team decisions before freeze
-
-1. **Financial decisions (RESOLVED):** Dart basis points, PostgreSQL fractional NUMERIC, half-up whole-NPR deposit/commission rounding, 20% deposit, 10% commission, 1.5× late-fee multiplier. **Still open:** late-day calculation, grace period, fee cap/deduction, and other configuration defaults.
-2. **Canonical field naming:** keep SQL `daily_rate`, `pickup_area`, `status`, `display_name`, `content`, text `version` and map them in Dart, or approve deliberate renames via migration? Decide full Profile/Item/Terms final shape.
-3. **Terms:** audience/version + immutable published copies, who may view historic accepted terms; how to validate old `terms_version_ids` UUID array.
-4. **Availability:** whether `returned`/`disputed` retain a calendar block, how ongoing overdue/damage affects dates beyond original range; cancellation permitted states.
-5. **Handover:** securely deliver code while retaining hashed-only verifier storage, lockout/reset and single use. Plaintext-storage change proposed by v0.1 is **not compliant with current plan**.
-6. **Account deletion:** reconcile Auth FK cascade with the plan's anonymised ledger/booking retention and data privacy.
-7. **Storage:** adopt/omit additional avatar/damage buckets and exact access scopes; mandatory sensitive handover photos remain admin-only.
-8. **Extra RPCs:** names and signatures for cancellation, blocked dates, gated contacts, terms reads, payout marking, secure code delivery.
-9. **Idempotency/errors:** scope and persistence of retry keys, SQLSTATE vs exception message mapping; standard response DTOs and permissions.
-
-## 10. Change log
+### Change log
 
 | Version | Date | Change | Approval |
 | --- | --- | --- | --- |
-| v0.1 | 2026-11-24 | Smaran's detailed draft; contained differences from existing schema and unapproved placeholder settings | Draft only |
-| **v0.2** | **2026-11-24** | Reconciled against actual 21 November plan and committed SQL, preserved mandatory 16 RPCs, corrected handover hash rule, separated implemented/future/proposed, listed decisions and work division | **Awaiting team review** |
-| **v0.3** | **2026-11-24** | Approved financial settings (20% deposit, 10% commission, 1.5× multiplier); Dart basis points ↔ PostgreSQL fractional NUMERIC; half-up whole-NPR rounding; corrected worked example; retained unresolved nonfinancial decisions and clarified local implementation status | **Financial decisions approved by Mohan; overall contract review pending** |
+| v0.1 | 2026-11-24 | Smaran's draft | Draft |
+| v0.2 | 2026-11-24 | Reconciled with the plan and the committed SQL (Srijan) | Reviewed |
+| v0.3 | 2026-11-24 | Financial rules approved: 20% deposit, 10% commission, 1.5x multiplier, basis points in Dart, half-up whole-NPR rounding | Mohan |
+| **v1.0** | 2026-11-26 | Frozen. Adds minimum deposit, ID gate, payment channel, handover code design, availability, deletion and retention, terms, supplemental RPCs, error transport, implementation deltas; deferred late-fee policy. | Pending the three approvals above |

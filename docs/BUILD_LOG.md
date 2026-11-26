@@ -20,3 +20,10 @@ Each build adds one entry. The zip of that build replaces the files it lists.
 - Updated: README files, setup guides (`docs/setup/`), `docs/00-START-HERE.md`, `docs/honesty-rules.md`.
 - Handed to others via issues: `money.dart` minimum deposit (Smaran), `min_deposit_amount` in `app_settings` and bookings snapshot (Srijan).
 - Next (Phase 1, Mohan): auth, profile and ID upload with the ID gate guard, admin role guard, ID verification queue.
+
+## Build 0.3, API contract v1.0 freeze (Mohan)
+- Added: `docs/api-contract.md` v1.0 (frozen on merge): minimum deposit, ID verification gate, payment channel, handover code design, availability rules, account deletion, terms acceptance, supplemental RPCs, error transport, implementation deltas, deferred late-fee policy.
+- Updated: `docs/business-rules.md` examples now use the team-approved 20% deposit (declared 160,000 gives deposit 32,000, Borrower pays 42,500).
+- Updated: `docs/state-machine.md` to match the contract lifecycle.
+- Updated: `scripts/setup_github.mjs` money issue text (20% example).
+- Process: changes to the contract or models need a PR labelled `contract-change` and all three approvals.

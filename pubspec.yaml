@@ -8,3 +8,11 @@ workspace:
   - apps/admin_web
   - packages/rental_core
   - packages/rental_data
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

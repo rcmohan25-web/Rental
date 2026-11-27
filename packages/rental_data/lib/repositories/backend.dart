@@ -36,7 +36,7 @@ abstract final class RentalBackend {
     required String url,
     required String anonKey,
   }) async {
-    await Supabase.initialize(url: url, anonKey: anonKey);
+    await Supabase.initialize(url: url, publishableKey: anonKey);
     _client = Supabase.instance.client;
   }
 

@@ -96,8 +96,10 @@ class SupabaseItemRepository implements ItemRepository {
             .eq('id', id)
             .maybeSingle();
         if (row == null) {
-          throw const AppException('Item not available',
-              code: 'ITEM_UNAVAILABLE');
+          throw const AppException(
+            'Item not available',
+            code: 'ITEM_UNAVAILABLE',
+          );
         }
         return _toItem(asRow(row));
       });

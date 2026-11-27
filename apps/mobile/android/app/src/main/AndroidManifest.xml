@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Release builds need this too (the debug and profile manifests only
+         add it for development). Without it the APK cannot reach Supabase. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Rental"
         android:name="${applicationName}"

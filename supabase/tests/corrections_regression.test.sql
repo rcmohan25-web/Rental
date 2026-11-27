@@ -46,6 +46,7 @@ SELECT is((SELECT content FROM public.terms_documents WHERE title='renter terms'
 SELECT public.admin_publish_terms('borrower','Borrower terms');
 SELECT public.admin_publish_terms('general','General terms');
 SELECT public.admin_update_setting('min_declared_value','2000');
+SELECT public.admin_update_setting('min_deposit_amount','0');
 SELECT public.admin_update_setting('auto_approve_orders','false');
 
 CREATE FUNCTION pg_temp.fixture(p_state TEXT DEFAULT 'returned',p_renter BOOLEAN DEFAULT TRUE,

@@ -8,5 +8,6 @@ export 'fake_data.dart';
 export 'fake_identity_store.dart';
 export 'fake_item_repository.dart';
 export 'fake_kyc_repository.dart';
+export 'fake_listing_repository.dart';
 export 'fake_profile_repository.dart';
 export 'fake_settings_repository.dart';

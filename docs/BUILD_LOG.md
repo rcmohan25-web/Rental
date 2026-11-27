@@ -34,3 +34,13 @@ Merge order: **Mohan, then Srijan and Smaran** (those two do not depend on each 
 Phase 1 gate: sign up, submit ID, renter lists an item, borrower sees it.
 
 Next (Build 0.5, Phase 2): request to payment. Booking and payment repositories live, renter inbox with the terms tick, borrower payment screen with QR and proof upload, admin order queue and payment verification, terms manager and platform settings screens, `admin_verify_payment` and the handover code RPCs.
+
+## Build 0.4 — Srijan (27 November 2026)
+
+- Integrated renter listing UI, repository implementations, Supabase migrations, seed data, and regression test files.
+- Flutter analysis: passed (no issues).
+- Backend Flutter tests: passed (67 tests).
+- Supabase migrations: all pending local migrations applied successfully.
+- Full mobile widget test suite: renter-listing test appeared to hang; needs further investigation.
+- Phase 1 SQL regression suite: not yet executed.
+- API contract v1.1: proposal only, pending team review.

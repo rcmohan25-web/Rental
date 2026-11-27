@@ -2,26 +2,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:rental_core/rental_core.dart';
 
-import '../features/users/routes.dart';
+import '../features/analytics/routes.dart';
+import '../features/audit_log/routes.dart';
+import '../features/disputes/routes.dart';
 import '../features/kyc_queue/routes.dart';
 import '../features/orders/routes.dart';
 import '../features/payments/routes.dart';
-import '../features/settlement/routes.dart';
-import '../features/disputes/routes.dart';
-import '../features/terms_manager/routes.dart';
 import '../features/settings/routes.dart';
-import '../features/analytics/routes.dart';
-import '../features/audit_log/routes.dart';
+import '../features/settlement/routes.dart';
 import '../features/shell/application/admin_guard.dart';
+import '../features/shell/application/admin_providers.dart';
+import '../features/shell/presentation/admin_login_screen.dart';
 import '../features/shell/presentation/admin_shell.dart';
+import '../features/terms_manager/routes.dart';
+import '../features/users/routes.dart';
 
-/// Every admin screen lives inside the shell (side navigation).
-/// Keep this file thin: add paths in the feature's own routes.dart.
+/// Every admin screen lives inside the shell (side navigation), except the
+/// login page. Keep this file thin: add paths in the feature's own routes.dart.
 final adminRouterProvider = Provider<GoRouter>((ref) {
+  final gate = AdminGate(
+    ref.watch(adminAuthRepositoryProvider),
+    ref.watch(adminProfileRepositoryProvider),
+  );
   return GoRouter(
     initialLocation: '/',
-    redirect: adminRedirect,
+    refreshListenable: ref.watch(adminAuthRefreshProvider),
+    redirect: (context, state) => gate.redirect(state.uri.toString()),
     routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => AdminLoginScreen(
+          denied: state.uri.queryParameters['denied'] == '1',
+        ),
+      ),
       ShellRoute(
         builder: (context, state, child) =>
             AdminShell(location: state.uri.path, child: child),

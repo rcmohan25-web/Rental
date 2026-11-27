@@ -46,24 +46,26 @@ void main() {
     expect(find.text('No listings yet'), findsOneWidget);
     expect(find.text('Add listing'), findsOneWidget);
 
-    await tester.runAsync(() => repo.createListing(
-          const ListingInput(
-            title: 'Bosch Drill',
-            description: '',
-            category: 'Tools',
-            condition: 'Good',
-            declaredValue: 15000,
-            dailyPrice: 500,
-            pickupArea: 'Kupondole, Lalitpur',
-            exactAddress: 'Kupondole 3',
-            photos: [
-              ListingPhoto.stored(
-                path: 'u/p.jpg',
-                url: 'https://example.test/p.jpg',
-              ),
-            ],
-          ),
-        ));
+    await tester.runAsync(
+      () => repo.createListing(
+        const ListingInput(
+          title: 'Bosch Drill',
+          description: '',
+          category: 'Tools',
+          condition: 'Good',
+          declaredValue: 15000,
+          dailyPrice: 500,
+          pickupArea: 'Kupondole, Lalitpur',
+          exactAddress: 'Kupondole 3',
+          photos: [
+            ListingPhoto.stored(
+              path: 'u/p.jpg',
+              url: 'https://example.test/p.jpg',
+            ),
+          ],
+        ),
+      ),
+    );
     final container = ProviderScope.containerOf(
       tester.element(find.byType(RenterListingsScreen)),
     );

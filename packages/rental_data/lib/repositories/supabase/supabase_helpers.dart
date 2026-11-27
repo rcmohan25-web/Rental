@@ -95,15 +95,15 @@ final Random _random = Random.secure();
 
 /// 128 random bits as hex. Used in storage file names.
 String randomId() => List<String>.generate(
-  16,
-  (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-).join();
+      16,
+      (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
 
 String extensionFor(ImageUpload upload) => switch (upload.contentType) {
-  'image/png' => 'png',
-  'image/webp' => 'webp',
-  _ => 'jpg',
-};
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      _ => 'jpg',
+    };
 
 /// `profile_private.area` holds the wire value ('lalitpur'). Tolerates labels.
 Area? parseArea(Object? value) {

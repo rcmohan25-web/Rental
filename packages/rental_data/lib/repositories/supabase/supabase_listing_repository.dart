@@ -58,18 +58,18 @@ class SupabaseListingRepository implements ListingRepository {
   }
 
   Map<String, dynamic> _fields(ListingInput input, List<String> paths) => {
-    'title': input.title.trim(),
-    'description': input.description.trim(),
-    'category': input.category,
-    'condition': input.condition,
-    'declared_value': input.declaredValue,
-    'daily_rate': input.dailyPrice,
-    'pickup_area': input.pickupArea.trim(),
-    'rules': (input.rules == null || input.rules!.trim().isEmpty)
-        ? null
-        : input.rules!.trim(),
-    'photo_paths': paths,
-  };
+        'title': input.title.trim(),
+        'description': input.description.trim(),
+        'category': input.category,
+        'condition': input.condition,
+        'declared_value': input.declaredValue,
+        'daily_rate': input.dailyPrice,
+        'pickup_area': input.pickupArea.trim(),
+        'rules': (input.rules == null || input.rules!.trim().isEmpty)
+            ? null
+            : input.rules!.trim(),
+        'photo_paths': paths,
+      };
 
   Future<void> _savePickup(String itemId, ListingInput input) async {
     final instructions = (input.pickupInstructions ?? '').trim();
@@ -92,74 +92,74 @@ class SupabaseListingRepository implements ListingRepository {
 
   @override
   Future<List<Item>> listMyItems() => guarded(() async {
-    final rows = await _client
-        .from('items')
-        .select()
-        .eq('lender_id', _userId())
-        .order('created_at', ascending: false);
-    return [for (final row in rows) _toItem(asRow(row))];
-  });
+        final rows = await _client
+            .from('items')
+            .select()
+            .eq('lender_id', _userId())
+            .order('created_at', ascending: false);
+        return [for (final row in rows) _toItem(asRow(row))];
+      });
 
   @override
   Future<MyListing> getMyListing(String itemId) => guarded(() async {
-    final row = await _client
-        .from('items')
-        .select()
-        .eq('id', itemId)
-        .eq('lender_id', _userId())
-        .maybeSingle();
-    if (row == null) {
-      throw const AppException('Not found.', code: 'NOT_ALLOWED');
-    }
-    final map = asRow(row);
-    final pickup = await _client
-        .from('item_pickup_details')
-        .select()
-        .eq('item_id', itemId)
-        .maybeSingle();
-    final bucket = _client.storage.from(_bucketName);
-    return MyListing(
-      item: _toItem(map),
-      photos: [
-        for (final path in List<String>.from(
-          map['photo_paths'] as List? ?? const [],
-        ))
-          ListingPhoto.stored(path: path, url: bucket.getPublicUrl(path)),
-      ],
-      exactAddress: (pickup?['exact_address'] as String?) ?? '',
-      pickupInstructions: pickup?['instructions'] as String?,
-    );
-  });
+        final row = await _client
+            .from('items')
+            .select()
+            .eq('id', itemId)
+            .eq('lender_id', _userId())
+            .maybeSingle();
+        if (row == null) {
+          throw const AppException('Not found.', code: 'NOT_ALLOWED');
+        }
+        final map = asRow(row);
+        final pickup = await _client
+            .from('item_pickup_details')
+            .select()
+            .eq('item_id', itemId)
+            .maybeSingle();
+        final bucket = _client.storage.from(_bucketName);
+        return MyListing(
+          item: _toItem(map),
+          photos: [
+            for (final path in List<String>.from(
+              map['photo_paths'] as List? ?? const [],
+            ))
+              ListingPhoto.stored(path: path, url: bucket.getPublicUrl(path)),
+          ],
+          exactAddress: (pickup?['exact_address'] as String?) ?? '',
+          pickupInstructions: pickup?['instructions'] as String?,
+        );
+      });
 
   @override
   Future<Item> createListing(ListingInput input) => guarded(() async {
-    final userId = _userId();
-    final paths = await _storePhotos(input.photos);
-    // Draft first: if a later step fails, nothing public exists.
-    final created = asRow(
-      await _client
-          .from('items')
-          .insert({
-            'lender_id': userId,
-            'status': 'draft',
-            ..._fields(input, paths),
-          })
-          .select()
-          .single(),
-    );
-    final itemId = created['id'] as String;
-    await _savePickup(itemId, input);
-    if (!input.publish) return _toItem(created);
-    final published = asRow(
-      await _client
-          .from('items')
-          .update({'status': 'active'})
-          .eq('id', itemId)
-          .select()
-          .single(),
-    );
-    return _toItem(published);
-  });
+        final userId = _userId();
+        final paths = await _storePhotos(input.photos);
+        // Draft first: if a later step fails, nothing public exists.
+        final created = asRow(
+          await _client
+              .from('items')
+              .insert({
+                'lender_id': userId,
+                'status': 'draft',
+                ..._fields(input, paths),
+              })
+              .select()
+              .single(),
+        );
+        final itemId = created['id'] as String;
+        await _savePickup(itemId, input);
+        if (!input.publish) return _toItem(created);
+        final published = asRow(
+          await _client
+              .from('items')
+              .update({'status': 'active'})
+              .eq('id', itemId)
+              .select()
+              .single(),
+        );
+        return _toItem(published);
+      });
 
   @override
   Future<Item> updateListing(String itemId, ListingInput input) =>
@@ -205,19 +205,19 @@ class SupabaseListingRepository implements ListingRepository {
 
   @override
   Future<Item> setStatus(String itemId, ItemStatus status) => guarded(() async {
-    final row = asRow(
-      await _client
-          .from('items')
-          .update({'status': status.wire})
-          .eq('id', itemId)
-          .select()
-          .single(),
-    );
-    return _toItem(row);
-  });
+        final row = asRow(
+          await _client
+              .from('items')
+              .update({'status': status.wire})
+              .eq('id', itemId)
+              .select()
+              .single(),
+        );
+        return _toItem(row);
+      });
 
   @override
   Future<void> deleteListing(String itemId) => guarded(() async {
-    await _client.rpc('delete_item', params: {'p_item_id': itemId});
-  });
+        await _client.rpc('delete_item', params: {'p_item_id': itemId});
+      });
 }

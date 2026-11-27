@@ -14,15 +14,15 @@ class SupabaseSettingsRepository implements SettingsRepository {
 
   @override
   Future<AppSettings> getSettings() => guarded(() async {
-    final values = asRow(await _client.rpc('get_public_settings'));
-    try {
-      return AppSettings.fromKeyValues(values);
-    } on FormatException {
-      // A required rate is missing or malformed: never guess a number.
-      throw const AppException(
-        'Settings unavailable.',
-        code: 'SETTING_UNAVAILABLE',
-      );
-    }
-  });
+        final values = asRow(await _client.rpc('get_public_settings'));
+        try {
+          return AppSettings.fromKeyValues(values);
+        } on FormatException {
+          // A required rate is missing or malformed: never guess a number.
+          throw const AppException(
+            'Settings unavailable.',
+            code: 'SETTING_UNAVAILABLE',
+          );
+        }
+      });
 }

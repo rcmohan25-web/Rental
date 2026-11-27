@@ -26,54 +26,53 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   @override
   Future<Profile> getMyProfile() => guarded(() async {
-    final id = _userId();
-    final row = asRow(
-      await _client.from('profiles').select().eq('id', id).single(),
-    );
-    final private = await _client
-        .from('profile_private')
-        .select('phone, area')
-        .eq('user_id', id)
-        .maybeSingle();
-    return Profile.fromJson({
-      'id': row['id'],
-      'display_name': row['display_name'],
-      'role': row['role'],
-      'account_status': row['status'],
-      'kyc_status': row['kyc_status'],
-      'created_at': row['created_at'],
-      'phone': private?['phone'],
-      'area': parseArea(private?['area'])?.wire,
-    });
-  });
+        final id = _userId();
+        final row = asRow(
+          await _client.from('profiles').select().eq('id', id).single(),
+        );
+        final private = await _client
+            .from('profile_private')
+            .select('phone, area')
+            .eq('user_id', id)
+            .maybeSingle();
+        return Profile.fromJson({
+          'id': row['id'],
+          'display_name': row['display_name'],
+          'role': row['role'],
+          'account_status': row['status'],
+          'kyc_status': row['kyc_status'],
+          'created_at': row['created_at'],
+          'phone': private?['phone'],
+          'area': parseArea(private?['area'])?.wire,
+        });
+      });
 
   @override
   Future<Profile> updateMyProfile({
     required String fullName,
     String? phone,
     Area? area,
-  }) => guarded(() async {
-    final id = _userId();
-    await _client
-        .from('profiles')
-        .update({'display_name': fullName.trim()})
-        .eq('id', id);
-    final cleanPhone = (phone == null || phone.trim().isEmpty)
-        ? null
-        : phone.trim();
-    // Update first: the client may not write user_id on an existing row.
-    final updated = await _client
-        .from('profile_private')
-        .update({'phone': cleanPhone, 'area': area?.wire})
-        .eq('user_id', id)
-        .select();
-    if (updated.isEmpty) {
-      await _client.from('profile_private').insert({
-        'user_id': id,
-        'phone': cleanPhone,
-        'area': area?.wire,
+  }) =>
+      guarded(() async {
+        final id = _userId();
+        await _client
+            .from('profiles')
+            .update({'display_name': fullName.trim()}).eq('id', id);
+        final cleanPhone =
+            (phone == null || phone.trim().isEmpty) ? null : phone.trim();
+        // Update first: the client may not write user_id on an existing row.
+        final updated = await _client
+            .from('profile_private')
+            .update({'phone': cleanPhone, 'area': area?.wire})
+            .eq('user_id', id)
+            .select();
+        if (updated.isEmpty) {
+          await _client.from('profile_private').insert({
+            'user_id': id,
+            'phone': cleanPhone,
+            'area': area?.wire,
+          });
+        }
+        return getMyProfile();
       });
-    }
-    return getMyProfile();
-  });
 }

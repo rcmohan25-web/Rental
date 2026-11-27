@@ -15,50 +15,51 @@ class SupabaseAdminKycRepository implements AdminKycRepository {
 
   @override
   Future<List<PendingKyc>> listPending() => guarded(() async {
-    final rows = await _client
-        .from('kyc_submissions')
-        .select(
-          'user_id, id_path, face_path, submitted_at, profiles!user_id(display_name)',
-        )
-        .eq('status', 'pending')
-        .order('submitted_at', ascending: true);
-    final bucket = _client.storage.from('kyc');
-    return Future.wait([
-      for (final raw in rows)
-        () async {
-          final row = asRow(raw);
-          final profile = row['profiles'];
-          final name = profile is Map ? profile['display_name'] : null;
-          return PendingKyc(
-            userId: row['user_id'] as String,
-            displayName: (name as String?) ?? 'Unnamed user',
-            submittedAt: DateTime.parse(row['submitted_at'] as String),
-            idPhotoUrl: await bucket.createSignedUrl(
-              row['id_path'] as String,
-              _signedUrlSeconds,
-            ),
-            facePhotoUrl: await bucket.createSignedUrl(
-              row['face_path'] as String,
-              _signedUrlSeconds,
-            ),
-          );
-        }(),
-    ]);
-  });
+        final rows = await _client
+            .from('kyc_submissions')
+            .select(
+              'user_id, id_path, face_path, submitted_at, profiles!user_id(display_name)',
+            )
+            .eq('status', 'pending')
+            .order('submitted_at', ascending: true);
+        final bucket = _client.storage.from('kyc');
+        return Future.wait([
+          for (final raw in rows)
+            () async {
+              final row = asRow(raw);
+              final profile = row['profiles'];
+              final name = profile is Map ? profile['display_name'] : null;
+              return PendingKyc(
+                userId: row['user_id'] as String,
+                displayName: (name as String?) ?? 'Unnamed user',
+                submittedAt: DateTime.parse(row['submitted_at'] as String),
+                idPhotoUrl: await bucket.createSignedUrl(
+                  row['id_path'] as String,
+                  _signedUrlSeconds,
+                ),
+                facePhotoUrl: await bucket.createSignedUrl(
+                  row['face_path'] as String,
+                  _signedUrlSeconds,
+                ),
+              );
+            }(),
+        ]);
+      });
 
   @override
   Future<void> review({
     required String userId,
     required bool approve,
     String? reason,
-  }) => guarded(() async {
-    await _client.rpc(
-      'admin_review_kyc',
-      params: {
-        'p_user_id': userId,
-        'p_decision': approve ? 'verified' : 'rejected',
-        'p_reason': reason,
-      },
-    );
-  });
+  }) =>
+      guarded(() async {
+        await _client.rpc(
+          'admin_review_kyc',
+          params: {
+            'p_user_id': userId,
+            'p_decision': approve ? 'verified' : 'rejected',
+            'p_reason': reason,
+          },
+        );
+      });
 }

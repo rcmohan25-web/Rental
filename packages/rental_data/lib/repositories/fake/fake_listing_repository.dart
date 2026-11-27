@@ -44,14 +44,14 @@ class FakeListingRepository implements ListingRepository {
   }
 
   List<ListingPhoto> _stored(List<ListingPhoto> photos, String id) => [
-    for (var i = 0; i < photos.length; i++)
-      photos[i].isNew
-          ? ListingPhoto.stored(
-              path: '$ownerId/$id-$i.jpg',
-              url: 'https://picsum.photos/seed/$id-$i/800/600',
-            )
-          : photos[i],
-  ];
+        for (var i = 0; i < photos.length; i++)
+          photos[i].isNew
+              ? ListingPhoto.stored(
+                  path: '$ownerId/$id-$i.jpg',
+                  url: 'https://picsum.photos/seed/$id-$i/800/600',
+                )
+              : photos[i],
+      ];
 
   Item _item(
     String id,
@@ -59,22 +59,23 @@ class FakeListingRepository implements ListingRepository {
     ItemStatus status,
     List<ListingPhoto> photos,
     DateTime createdAt,
-  ) => Item(
-    id: id,
-    lenderId: ownerId,
-    lenderFirstName: ownerFirstName,
-    category: input.category,
-    title: input.title.trim(),
-    description: input.description.trim(),
-    condition: input.condition,
-    declaredValue: input.declaredValue,
-    dailyPrice: input.dailyPrice,
-    pickupArea: input.pickupArea,
-    photoUrls: [for (final p in photos) p.url!],
-    rules: input.rules,
-    status: status,
-    createdAt: createdAt,
-  );
+  ) =>
+      Item(
+        id: id,
+        lenderId: ownerId,
+        lenderFirstName: ownerFirstName,
+        category: input.category,
+        title: input.title.trim(),
+        description: input.description.trim(),
+        condition: input.condition,
+        declaredValue: input.declaredValue,
+        dailyPrice: input.dailyPrice,
+        pickupArea: input.pickupArea,
+        photoUrls: [for (final p in photos) p.url!],
+        rules: input.rules,
+        status: status,
+        createdAt: createdAt,
+      );
 
   @override
   Future<List<Item>> listMyItems() async {

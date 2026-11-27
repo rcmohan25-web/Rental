@@ -10,7 +10,9 @@ class ListingPhoto extends Equatable {
     required String this.path,
     required String this.url,
   }) : upload = null;
-  const ListingPhoto.upload(ImageUpload this.upload) : path = null, url = null;
+  const ListingPhoto.upload(ImageUpload this.upload)
+      : path = null,
+        url = null;
 
   /// Storage path in the `item-photos` bucket (stored photos only).
   final String? path;
@@ -62,19 +64,19 @@ class ListingInput extends Equatable {
 
   @override
   List<Object?> get props => [
-    title,
-    description,
-    category,
-    condition,
-    declaredValue,
-    dailyPrice,
-    pickupArea,
-    exactAddress,
-    pickupInstructions,
-    rules,
-    photos,
-    publish,
-  ];
+        title,
+        description,
+        category,
+        condition,
+        declaredValue,
+        dailyPrice,
+        pickupArea,
+        exactAddress,
+        pickupInstructions,
+        rules,
+        photos,
+        publish,
+      ];
 }
 
 /// A listing as the owner sees it (with the private address).

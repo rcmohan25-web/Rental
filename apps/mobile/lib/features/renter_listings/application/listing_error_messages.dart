@@ -9,8 +9,8 @@ const Map<String, String> _messages = {
   'ACCOUNT_RESTRICTED': 'Your account is restricted. Please contact support.',
   'INVALID_VALUE':
       'Please check the form: the declared value must reach the minimum set '
-      'by Sapati, and a published listing needs a category, a condition '
-      'and 1 to 5 photos.',
+          'by Sapati, and a published listing needs a category, a condition '
+          'and 1 to 5 photos.',
   'SETTING_UNAVAILABLE':
       'The platform rules are not available right now. Please try later.',
   'EVIDENCE_MISSING': 'A photo is missing. Please add the photos again.',

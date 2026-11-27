@@ -93,12 +93,10 @@ class _ListingFormScreenState extends ConsumerState<ListingFormScreen> {
         _address.text = listing.exactAddress;
         _instructions.text = listing.pickupInstructions ?? '';
         _rules.text = item.rules ?? '';
-        _category = kItemCategories.contains(item.category)
-            ? item.category
-            : null;
-        _condition = _conditions.contains(item.condition)
-            ? item.condition
-            : null;
+        _category =
+            kItemCategories.contains(item.category) ? item.category : null;
+        _condition =
+            _conditions.contains(item.condition) ? item.condition : null;
         _area = area;
         _photos = listing.photos;
         _status = item.status;
@@ -335,8 +333,7 @@ class _ListingFormScreenState extends ConsumerState<ListingFormScreen> {
           label: 'Declared value (NPR)',
           controller: _declared,
           keyboardType: TextInputType.number,
-          helperText:
-              'What the item is worth. The refundable deposit is a '
+          helperText: 'What the item is worth. The refundable deposit is a '
               'share of it, set by Sapati.',
           validator: _wholeNpr,
         ),
@@ -362,8 +359,7 @@ class _ListingFormScreenState extends ConsumerState<ListingFormScreen> {
         AppTextField(
           label: 'Exact pickup address (private)',
           controller: _address,
-          helperText:
-              'Shared only with the Borrower after payment is '
+          helperText: 'Shared only with the Borrower after payment is '
               'verified.',
           validator: _required,
         ),

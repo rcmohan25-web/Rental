@@ -22,15 +22,16 @@ class SupabaseAuthRepository implements AuthRepository {
     required String email,
     required String password,
     required String fullName,
-  }) => guarded(() async {
-    // The database trigger creates the profile from display_name.
-    final response = await _client.auth.signUp(
-      email: email.trim(),
-      password: password,
-      data: {'display_name': fullName.trim()},
-    );
-    return SignUpResult(needsEmailConfirmation: response.session == null);
-  });
+  }) =>
+      guarded(() async {
+        // The database trigger creates the profile from display_name.
+        final response = await _client.auth.signUp(
+          email: email.trim(),
+          password: password,
+          data: {'display_name': fullName.trim()},
+        );
+        return SignUpResult(needsEmailConfirmation: response.session == null);
+      });
 
   @override
   Future<void> signIn({required String email, required String password}) =>

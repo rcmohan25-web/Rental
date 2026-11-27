@@ -21,18 +21,19 @@ ListingInput _input({
   bool publish = true,
   int declared = 160000,
   String title = 'Sony camera',
-}) => ListingInput(
-  title: title,
-  description: 'Full frame',
-  category: 'Cameras',
-  condition: 'Good',
-  declaredValue: declared,
-  dailyPrice: 3500,
-  pickupArea: 'Jawalakhel Chowk, Lalitpur',
-  exactAddress: 'House 7, Jawalakhel',
-  photos: photos ?? [_photo()],
-  publish: publish,
-);
+}) =>
+    ListingInput(
+      title: title,
+      description: 'Full frame',
+      category: 'Cameras',
+      condition: 'Good',
+      declaredValue: declared,
+      dailyPrice: 3500,
+      pickupArea: 'Jawalakhel Chowk, Lalitpur',
+      exactAddress: 'House 7, Jawalakhel',
+      photos: photos ?? [_photo()],
+      publish: publish,
+    );
 
 void main() {
   test('create and publish shows the item as active with its photo', () async {

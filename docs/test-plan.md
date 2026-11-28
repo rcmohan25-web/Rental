@@ -38,20 +38,22 @@ python -B supabase\tests\run_local_regression.py fresh   # SQL, Srijan (Docker +
 | 2026-11-27 | Build 0.4 author (Claude) | Money rules with minimum deposit: all 14 breakdown and 6 late-fee fixture cases through `money.dart` on the plain Dart SDK 3.14.1 (34 checks, including the rate conversions) | 0 failures |
 | 2026-11-27 | Build 0.4 author (Claude) | The same 14 breakdown fixtures through SQL `rental_private.calculate_money` (6-argument form) on PostgreSQL 16 | 0 mismatches |
 | 2026-11-27 | Build 0.4 author (Claude) | `dart format` on every Dart file of the three zips (syntax only). No `flutter analyze` or `flutter test`: no Flutter SDK in that environment | syntax OK, **not compiled** |
+| 2026-11-28 | Smaran | `flutter analyze` at the repo root on Flutter 3.47.3, first run after copying the Build 0.4 files onto an unmerged `main`: 5 errors, all from the missing `RentalBackend` and `apps/mobile/lib/shared/id_gate.dart` (Mohan's phase 1 PR #29, not pulled yet) | 5 errors, cause found |
+| 2026-11-28 | Smaran | Merged `origin/main` (Mohan's #29) into `feature/phase1-borrower-money`, `flutter pub get`, then `flutter analyze` | No issues found |
 | | Smaran | `flutter test` in rental_core, rental_data, apps/mobile after applying Build 0.4 | **to do** |
 | | Smaran | Physical device: Explore and Item details on live data (needs Srijan's zip and the keys) | **to do** |
 
 ## Manual checklist, Explore and Item details (fake data, then live)
 
-- [ ] Explore loads with a spinner, then shows 12 items; scrolling to the bottom shows no duplicates.
-- [ ] Search narrows the list after a short pause; clearing it restores the list.
-- [ ] Category chips, filter sheet (area, price, sort) and "Reset" work; the badge on the filter button shows the count.
-- [ ] No match shows "No items found" and "Clear filters" works.
-- [ ] Item details shows price per day and the refundable deposit separately.
-- [ ] **Minimum deposit:** an item with a low declared value shows the minimum as its deposit (set `min_deposit_amount` higher than 20% of the value in the settings, or use the fake settings in a test).
-- [ ] Choosing dates that overlap "Already booked" shows the error and clears the selection (fake mode).
-- [ ] Choosing 3 free days of the camera shows NPR 10,500 + NPR 32,000, total NPR 42,500.
-- [ ] **ID gate:** signed in without an ID, tapping "Send rental request" shows "Submit your ID first" and leads to Verify identity (fake mode).
-- [ ] "Send rental request" shows "Requested" and that nothing was charged; tapping twice quickly creates one request (fake mode).
+- [✓] Explore loads with a spinner, then shows 12 items; scrolling to the bottom shows no duplicates.
+- [✓] Search narrows the list after a short pause; clearing it restores the list.
+- [✓] Category chips, filter sheet (area, price, sort) and "Reset" work; the badge on the filter button shows the count.
+- [✓] No match shows "No items found" and "Clear filters" works.
+- [✓] Item details shows price per day and the refundable deposit separately.
+- [✓] **Minimum deposit:** an item with a low declared value shows the minimum as its deposit (set `min_deposit_amount` higher than 20% of the value in the settings, or use the fake settings in a test).
+- [✓] Choosing dates that overlap "Already booked" shows the error and clears the selection (fake mode).
+- [✓] Choosing 3 free days of the camera shows NPR 10,500 + NPR 32,000, total NPR 42,500.
+- [✓] **ID gate:** signed in without an ID, tapping "Send rental request" shows "Submit your ID first" and leads to Verify identity (fake mode).
+- [✓] "Send rental request" shows "Requested" and that nothing was charged; tapping twice quickly creates one request (fake mode).
 - [ ] **Live mode:** Explore shows the Renter's published items (first name, no address); Item details shows the notice "Rental requests open in the next build" instead of the send button.
-- [ ] Text scale 130% and a small phone: no overflow.
+- [✓] Text scale 130% and a small phone: no overflow.

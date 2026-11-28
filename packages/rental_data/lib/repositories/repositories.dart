@@ -8,5 +8,6 @@ export 'booking_repository.dart';
 export 'image_upload.dart';
 export 'item_repository.dart';
 export 'kyc_repository.dart';
+export 'listing_repository.dart';
 export 'profile_repository.dart';
 export 'settings_repository.dart';

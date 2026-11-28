@@ -40,12 +40,21 @@ UPDATE public.profiles SET role='admin' WHERE id='d2400000-0000-0000-0000-000000
 UPDATE public.profiles SET kyc_status='verified' WHERE id IN('d2400000-0000-0000-0000-000000000002','d2400000-0000-0000-0000-000000000003');
 SELECT set_config('request.jwt.claims','{"sub":"d2400000-0000-0000-0000-000000000001","role":"authenticated"}',TRUE);
 -- A valid baseline title/version must not prevent new publication.
-INSERT INTO public.terms_documents(title,version,content,status,published_at) VALUES('renter terms','1','legacy immutable text','published',NOW());
+INSERT INTO public.terms_documents(title,version,content,status,published_at)
+SELECT 'renter terms','1','legacy immutable text','published',NOW()
+WHERE NOT EXISTS (
+    SELECT 1 FROM public.terms_documents
+    WHERE title='renter terms' AND version='1'
+);
+CREATE TEMP TABLE renter_terms_before AS
+SELECT content FROM public.terms_documents
+WHERE title='renter terms' AND version='1';
 SELECT is(public.admin_publish_terms('renter','New renter terms')->>'version','2','legacy title collision avoided');
-SELECT is((SELECT content FROM public.terms_documents WHERE title='renter terms' AND version='1'),'legacy immutable text','legacy content preserved');
+SELECT is((SELECT content FROM public.terms_documents WHERE title='renter terms' AND version='1'),(SELECT content FROM renter_terms_before),'legacy content preserved');
 SELECT public.admin_publish_terms('borrower','Borrower terms');
 SELECT public.admin_publish_terms('general','General terms');
 SELECT public.admin_update_setting('min_declared_value','2000');
+SELECT public.admin_update_setting('min_deposit_amount','0');
 SELECT public.admin_update_setting('auto_approve_orders','false');
 
 CREATE FUNCTION pg_temp.fixture(p_state TEXT DEFAULT 'returned',p_renter BOOLEAN DEFAULT TRUE,
@@ -196,6 +205,9 @@ INSERT INTO public.items(id,lender_id,title,daily_rate,declared_value,pickup_are
  ARRAY['d2400000-0000-0000-0000-000000000002/live.jpg']);
 SELECT set_config('request.jwt.claims','{"sub":"d2400000-0000-0000-0000-000000000003","role":"authenticated"}',TRUE);
 SET LOCAL ROLE authenticated;
+RESET ROLE;
+DELETE FROM public.app_settings WHERE key='request_expiry_hours';
+SET LOCAL ROLE authenticated;
 SELECT throws_ok($$SELECT public.create_booking_request('e2400000-0000-0000-0000-000000000001',CURRENT_DATE+1,CURRENT_DATE+3)$$,
  'P0001','SETTING_UNAVAILABLE','unapproved expiry is not invented');
 RESET ROLE;
@@ -205,6 +217,9 @@ SELECT public.admin_update_setting('request_expiry_hours','48');
 SELECT set_config('request.jwt.claims','{"sub":"d2400000-0000-0000-0000-000000000003","role":"authenticated"}',TRUE);
 SET LOCAL ROLE authenticated;
 SELECT is(public.create_booking_request('e2400000-0000-0000-0000-000000000001',CURRENT_DATE+1,CURRENT_DATE+3)->>'deposit_amount','32000.00','creation calculates approved deposit');
+RESET ROLE;
+DELETE FROM public.app_settings WHERE key='request_expiry_hours';
+SET LOCAL ROLE authenticated;
 SELECT throws_ok($$SELECT public.create_booking_request('e2400000-0000-0000-0000-000000000001',CURRENT_DATE+1,CURRENT_DATE+3)$$,'P0001','DUPLICATE_REQUEST','duplicate request rejected');
 RESET ROLE;
 SELECT set_config('request.jwt.claims','{"sub":"d2400000-0000-0000-0000-000000000001","role":"authenticated"}',TRUE);

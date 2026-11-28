@@ -27,6 +27,7 @@ void main() {
           declaredValue: i['declaredValue'] as int,
           depositRateBps: i['depositRateBps'] as int,
           commissionRateBps: i['commissionRateBps'] as int,
+          minDepositAmount: (i['minDepositAmount'] as int?) ?? 0,
         );
         expect(r.days, e['days']);
         expect(r.rentalFee, e['rentalFee']);
@@ -101,15 +102,54 @@ void main() {
     });
   });
 
+  group('minimum deposit', () {
+    test('the minimum wins when the percentage is lower', () {
+      expect(Money.deposit(2000, 2000, minDepositAmount: 1000), 1000);
+    });
+
+    test('the percentage wins when it is higher', () {
+      expect(Money.deposit(160000, 2000, minDepositAmount: 1000), 32000);
+    });
+
+    test('equal values give that value, no minimum is the old behaviour', () {
+      expect(Money.deposit(2000, 2000, minDepositAmount: 400), 400);
+      expect(Money.deposit(2000, 2000), 400);
+    });
+
+    test('a negative minimum throws', () {
+      expect(
+        () => Money.deposit(2000, 2000, minDepositAmount: -1),
+        throwsArgumentError,
+      );
+    });
+
+    test('low-value rental: Borrower pays fee plus the minimum', () {
+      final r = Money.breakdown(
+        start: DateTime(2026, 12, 1),
+        end: DateTime(2026, 12, 1),
+        dailyPrice: 100,
+        declaredValue: 2000,
+        depositRateBps: 2000,
+        commissionRateBps: 1000,
+        minDepositAmount: 1000,
+      );
+      expect(r.deposit, 1000);
+      expect(r.borrowerPays, 1100);
+      expect(r.renterEarning, 90);
+    });
+  });
+
   group('approved v0.3 boundary examples', () {
     test('declared value 5 at 20% gives a deposit of 1', () {
       expect(Money.deposit(5, 2000), 1);
     });
 
-    test('rental fee 5 at 10% gives a commission of 1 (0.5 rounds half up)',
-        () {
-      expect(Money.applyRate(5, 1000), 1);
-    });
+    test(
+      'rental fee 5 at 10% gives a commission of 1 (0.5 rounds half up)',
+      () {
+        expect(Money.applyRate(5, 1000), 1);
+      },
+    );
 
     test('deposit rounds at .5: 1.4 gives 1 and 1.6 gives 2', () {
       expect(Money.deposit(7, 2000), 1);

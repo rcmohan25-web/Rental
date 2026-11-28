@@ -8,9 +8,10 @@ import 'json_helpers.dart';
 ///
 /// Dart keeps rates as basis points (exact integers). On the wire the team
 /// contract uses fractions: `commission_rate` 0.1000, `deposit_rate` 0.2000.
-/// JSON keys for the money snapshot follow the contract's proposed names
+/// JSON keys for the money snapshot follow the contract
 /// (`agreed_daily_rate`, `rental_days`, `declared_value_snapshot`,
-/// `rental_fee`, `deposit_amount`, `commission_amount`, `lender_earning`).
+/// `rental_fee`, `deposit_amount`, `min_deposit_amount`, `commission_amount`,
+/// `lender_earning`).
 class Booking extends Equatable {
   const Booking({
     required this.id,
@@ -32,6 +33,7 @@ class Booking extends Equatable {
     required this.termsVersionIds,
     required this.createdAt,
     required this.updatedAt,
+    this.minDepositAmount = 0,
     this.lateFeeMultiplierX100,
     this.returnGraceHours,
     this.idempotencyKey,
@@ -43,7 +45,7 @@ class Booking extends Equatable {
   });
 
   /// Only the columns of the committed schema are required. The snapshot and
-  /// evidence columns are planned migrations, so they are read when present.
+  /// evidence columns are read when present.
   factory Booking.fromJson(Map<String, dynamic> json) => Booking(
         id: json['id'] as String,
         itemId: json['item_id'] as String,
@@ -59,6 +61,9 @@ class Booking extends Equatable {
         deposit: wholeNpr(json['deposit_amount']),
         commissionRateBps: rateToBps(json['commission_rate']),
         depositRateBps: rateToBps(json['deposit_rate']),
+        minDepositAmount: json['min_deposit_amount'] == null
+            ? 0
+            : wholeNpr(json['min_deposit_amount']),
         commissionAmount: wholeNpr(json['commission_amount']),
         renterEarning: wholeNpr(json['lender_earning']),
         lateFeeMultiplierX100: json['late_fee_multiplier'] == null
@@ -98,6 +103,10 @@ class Booking extends Equatable {
   final int deposit;
   final int commissionRateBps;
   final int depositRateBps;
+
+  /// The minimum deposit that applied when the request was made (whole NPR).
+  /// 0 for bookings created before the minimum existed.
+  final int minDepositAmount;
   final int commissionAmount;
   final int renterEarning;
 
@@ -105,8 +114,8 @@ class Booking extends Equatable {
   final int? lateFeeMultiplierX100;
   final int? returnGraceHours;
 
-  /// The committed schema stores `terms_version_ids uuid[]`. A relational
-  /// replacement (`terms_acceptances`) is still to be agreed.
+  /// The committed schema stores `terms_version_ids uuid[]`; the relational
+  /// snapshot is `booking_terms`.
   final List<String> termsVersionIds;
   final String? declineReason;
 
@@ -116,7 +125,7 @@ class Booking extends Equatable {
   final bool isEscalated;
   final bool hasDamageReport;
 
-  /// Retry key of create_booking_request (proposed in the contract).
+  /// Retry key of create_booking_request (planned in the contract).
   final String? idempotencyKey;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -145,6 +154,7 @@ class Booking extends Equatable {
         deposit: deposit,
         commissionRateBps: commissionRateBps,
         depositRateBps: depositRateBps,
+        minDepositAmount: minDepositAmount,
         commissionAmount: commissionAmount,
         renterEarning: renterEarning,
         lateFeeMultiplierX100: lateFeeMultiplierX100,
@@ -175,6 +185,7 @@ class Booking extends Equatable {
         'deposit_amount': deposit,
         'commission_rate': bpsToRate(commissionRateBps),
         'deposit_rate': bpsToRate(depositRateBps),
+        'min_deposit_amount': minDepositAmount,
         'commission_amount': commissionAmount,
         'lender_earning': renterEarning,
         'late_fee_multiplier':
@@ -209,6 +220,7 @@ class Booking extends Equatable {
         deposit,
         commissionRateBps,
         depositRateBps,
+        minDepositAmount,
         commissionAmount,
         renterEarning,
         lateFeeMultiplierX100,

@@ -1,6 +1,6 @@
 // OWNER: Smaran. The one money library for Rental.
 //
-// Rules (plan section 4.4, docs/api-contract.md section 1):
+// Rules (plan section 4.4, docs/business-rules.md, docs/api-contract.md v1.0 section 1):
 // - All amounts are whole NPR stored in `int`. Never use `double` for money.
 // - Inside Dart, rates are basis points: 1000 = 10%, 2000 = 20%. This keeps all
 //   arithmetic in exact integers. The database stores fractions (commission_rate
@@ -8,15 +8,17 @@
 //   multiplierX100FromFactor at the edge (docs/api-contract.md section 1).
 // - The late fee multiplier is x100: 150 = 1.5x.
 // - Rounding is half up to whole NPR, the same as PostgreSQL `round()` on
-//   non-negative numbers. Approved by Mohan in contract v0.3 (deposit and
-//   commission, including .5 boundaries).
-// - APPROVED in v0.3: 20% deposit, 10% commission, 1.5x multiplier.
+//   non-negative numbers (approved in contract v0.3).
+// - Deposit = max( round_half_up(declared value x deposit rate), minimum deposit ).
+//   The minimum (`min_deposit_amount`) is a whole-NPR admin setting for
+//   low-value items (supervisor decision, 23 Nov 2026). Zero means no minimum.
+// - APPROVED: 20% deposit, 10% commission, 1.5x multiplier.
 //   NOT approved: grace period, late-day rounding, cap and deduction rules.
 //   lateDays and lateFee below are PROVISIONAL until they are.
 //
-// The SQL functions must give exactly the same numbers. Both sides are tested
-// with shared/fixtures/money_cases.json. Do not change a formula without
-// updating the fixtures and telling Srijan.
+// The SQL function rental_private.calculate_money gives exactly the same
+// numbers. Both sides are tested with shared/fixtures/money_cases.json. Do not
+// change a formula without updating the fixtures and telling Srijan.
 
 /// The amounts for one booking, all in whole NPR.
 class MoneyBreakdown {
@@ -34,7 +36,7 @@ class MoneyBreakdown {
   /// days x daily price.
   final int rentalFee;
 
-  /// Refundable deposit: declared value x deposit rate, rounded.
+  /// Refundable deposit: max(declared value x deposit rate, minimum), rounded.
   final int deposit;
 
   /// Platform commission on the rental fee (taken from the Renter's earning).
@@ -95,9 +97,20 @@ abstract final class Money {
     return days * dailyPrice;
   }
 
-  /// Refundable deposit as a percentage of the declared value.
-  static int deposit(int declaredValue, int depositRateBps) =>
-      applyRate(declaredValue, depositRateBps);
+  /// Refundable deposit: a percentage of the declared value, but never below
+  /// [minDepositAmount] (whole NPR, 0 means no minimum).
+  /// Example: deposit(2000, 2000, minDepositAmount: 1000) is 1000.
+  static int deposit(
+    int declaredValue,
+    int depositRateBps, {
+    int minDepositAmount = 0,
+  }) {
+    if (minDepositAmount < 0) {
+      throw ArgumentError('minimum deposit must not be negative');
+    }
+    final byRate = applyRate(declaredValue, depositRateBps);
+    return byRate > minDepositAmount ? byRate : minDepositAmount;
+  }
 
   /// Everything the request screen and the server snapshot need.
   static MoneyBreakdown breakdown({
@@ -107,6 +120,7 @@ abstract final class Money {
     required int declaredValue,
     required int depositRateBps,
     required int commissionRateBps,
+    int minDepositAmount = 0,
   }) {
     final d = days(start, end);
     final fee = rentalFee(d, dailyPrice);
@@ -114,7 +128,11 @@ abstract final class Money {
     return MoneyBreakdown(
       days: d,
       rentalFee: fee,
-      deposit: deposit(declaredValue, depositRateBps),
+      deposit: deposit(
+        declaredValue,
+        depositRateBps,
+        minDepositAmount: minDepositAmount,
+      ),
       commission: commission,
       renterEarning: fee - commission,
     );

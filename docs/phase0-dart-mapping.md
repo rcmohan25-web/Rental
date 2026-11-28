@@ -30,6 +30,8 @@ If the team picks integer basis points in the database instead, only `rateToBps`
 | planned `terms_acceptances` | `TermsAcceptance` | `termsDocumentId`, text `version`, server-set `acceptedAt`. |
 | planned `ledger_entries` | `LedgerEntry` | Shape is Smaran's proposal; no columns are fixed in the contract yet. |
 
+Build 0.4 (minimum deposit): `AppSettings.minDepositAmount` reads `min_deposit_amount`, and `Booking.minDepositAmount` reads `min_deposit_amount` (default 0).
+
 ## 4. Booking statuses and dates
 
 - The 12 values match the initial schema; `BookingStatus.fromWire` rejects anything else.

@@ -4,20 +4,24 @@ import 'json_helpers.dart';
 
 /// The admin-edited settings. In the database they are rows of `app_settings`
 /// (`key text`, `value jsonb`) with the names the team contract fixes:
-/// `commission_rate`, `deposit_rate`, `late_fee_multiplier`,
-/// `return_grace_hours`, `legal_action_period_days`, `request_expiry_hours`,
-/// `min_declared_value`, `auto_approve_orders`.
+/// `commission_rate`, `deposit_rate`, `min_deposit_amount`,
+/// `late_fee_multiplier`, `return_grace_hours`, `legal_action_period_days`,
+/// `request_expiry_hours`, `min_declared_value`, `auto_approve_orders`.
 ///
 /// Contract v0.3 approves only three values: deposit 20%, commission 10% and
 /// the 1.5x late-fee multiplier. Those three are required: a missing or
-/// malformed one is an error, never a silent 0. The other five are not
-/// approved and not seeded yet, so they are optional here (null means "not
+/// malformed one is an error, never a silent 0. The other six are admin-set
+/// and not seeded by migrations, so they are optional here (null means "not
 /// set"); a value that is present must still be valid.
+///
+/// `minDepositAmount` (whole NPR) is the fixed minimum deposit for low-value
+/// items (supervisor decision 23 Nov 2026, contract v1.0 section 3.1).
 class AppSettings extends Equatable {
   const AppSettings({
     required this.commissionRateBps,
     required this.depositRateBps,
     required this.lateFeeMultiplierX100,
+    this.minDepositAmount,
     this.returnGraceHours,
     this.legalActionPeriodDays,
     this.requestExpiryHours,
@@ -37,8 +41,10 @@ class AppSettings extends Equatable {
     int? optionalWhole(String key) {
       final value = values[key];
       if (value == null) return null;
-      if (value is! num || value != value.roundToDouble()) {
-        throw FormatException('Setting $key must be a whole number: $value');
+      if (value is! num || value != value.roundToDouble() || value < 0) {
+        throw FormatException(
+          'Setting $key must be a whole number, zero or more: $value',
+        );
       }
       return value.toInt();
     }
@@ -59,6 +65,7 @@ class AppSettings extends Equatable {
       commissionRateBps: rateToBps(need('commission_rate')),
       depositRateBps: rateToBps(need('deposit_rate')),
       lateFeeMultiplierX100: (multiplier * 100).round(),
+      minDepositAmount: optionalWhole('min_deposit_amount'),
       returnGraceHours: optionalWhole('return_grace_hours'),
       legalActionPeriodDays: optionalWhole('legal_action_period_days'),
       requestExpiryHours: optionalWhole('request_expiry_hours'),
@@ -74,7 +81,7 @@ class AppSettings extends Equatable {
       });
 
   /// The three values approved in contract v0.3, for the fakes and tests.
-  /// The unapproved settings stay null on purpose.
+  /// The settings an admin sets stay null on purpose.
   static const AppSettings fakeDefaults = AppSettings(
     commissionRateBps: 1000,
     depositRateBps: 2000,
@@ -90,19 +97,23 @@ class AppSettings extends Equatable {
   /// x100: 150 = 1.5x.
   final int lateFeeMultiplierX100;
 
-  /// Not approved yet (null = not set).
+  /// Whole NPR. The deposit is never below this. Null = not set (the server
+  /// then refuses new requests with SETTING_UNAVAILABLE).
+  final int? minDepositAmount;
+
+  /// Admin-set (null = not set).
   final int? returnGraceHours;
 
-  /// Not approved yet (null = not set).
+  /// Admin-set (null = not set).
   final int? legalActionPeriodDays;
 
-  /// Not approved yet (null = not set).
+  /// Admin-set (null = not set).
   final int? requestExpiryHours;
 
-  /// Not approved yet (null = not set).
+  /// Admin-set (null = not set).
   final int? minDeclaredValue;
 
-  /// Not approved yet (null = not set).
+  /// Admin-set (null = not set).
   final bool? autoApproveOrders;
 
   /// The same pairs the database holds (fractions, not basis points). Settings
@@ -111,6 +122,7 @@ class AppSettings extends Equatable {
         'commission_rate': bpsToRate(commissionRateBps),
         'deposit_rate': bpsToRate(depositRateBps),
         'late_fee_multiplier': lateFeeMultiplierX100 / 100,
+        if (minDepositAmount != null) 'min_deposit_amount': minDepositAmount,
         if (returnGraceHours != null) 'return_grace_hours': returnGraceHours,
         if (legalActionPeriodDays != null)
           'legal_action_period_days': legalActionPeriodDays,
@@ -125,6 +137,7 @@ class AppSettings extends Equatable {
         commissionRateBps,
         depositRateBps,
         lateFeeMultiplierX100,
+        minDepositAmount,
         returnGraceHours,
         legalActionPeriodDays,
         requestExpiryHours,

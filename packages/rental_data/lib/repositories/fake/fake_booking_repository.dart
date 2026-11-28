@@ -84,6 +84,7 @@ class FakeBookingRepository implements BookingRepository {
     if (duplicate) _fail('DUPLICATE_REQUEST');
 
     final s = await settings.getSettings();
+    final minDeposit = s.minDepositAmount ?? 0;
     final amounts = Money.breakdown(
       start: start,
       end: end,
@@ -91,6 +92,7 @@ class FakeBookingRepository implements BookingRepository {
       declaredValue: item.declaredValue,
       depositRateBps: s.depositRateBps,
       commissionRateBps: s.commissionRateBps,
+      minDepositAmount: minDeposit,
     );
     final now = _clock().toUtc();
     _counter++;
@@ -109,6 +111,7 @@ class FakeBookingRepository implements BookingRepository {
       deposit: amounts.deposit,
       commissionRateBps: s.commissionRateBps,
       depositRateBps: s.depositRateBps,
+      minDepositAmount: minDeposit,
       commissionAmount: amounts.commission,
       renterEarning: amounts.renterEarning,
       lateFeeMultiplierX100: s.lateFeeMultiplierX100,

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:rental_core/rental_core.dart';
 import 'package:rental_data/rental_data.dart';
 
+import '../../../shared/id_gate.dart';
 import '../../explore/application/catalog_providers.dart';
 import '../application/booking_error_messages.dart';
 import '../application/idempotency.dart';
@@ -61,6 +62,9 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
   Future<void> _send(Item item) async {
     final range = _range;
     if (range == null || _sending) return;
+    // The ID gate: an ID must be submitted before the first request.
+    if (!await ensureIdSubmitted(context, ref)) return;
+    if (!mounted) return;
     setState(() {
       _sending = true;
       _sendError = null;
@@ -137,11 +141,14 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
     AppSettings settings,
   ) {
     final textTheme = Theme.of(context).textTheme;
+    final minDeposit = settings.minDepositAmount ?? 0;
     final deposit = Money.deposit(
       item.declaredValue,
       settings.depositRateBps,
+      minDepositAmount: minDeposit,
     );
     final range = _range;
+    final requestsEnabled = ref.watch(bookingRequestsEnabledProvider);
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 32),
@@ -235,11 +242,23 @@ class _ItemDetailsScreenState extends ConsumerState<ItemDetailsScreen> {
                     declaredValue: item.declaredValue,
                     depositRateBps: settings.depositRateBps,
                     commissionRateBps: settings.commissionRateBps,
+                    minDepositAmount: minDeposit,
                   ),
                   dailyPrice: item.dailyPrice,
                 ),
                 const SizedBox(height: 16),
-                if (_sent == null)
+                if (!requestsEnabled)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'Rental requests open in the next build. This item '
+                        'and its price are live, but a request cannot be '
+                        'sent yet.',
+                      ),
+                    ),
+                  )
+                else if (_sent == null)
                   PrimaryButton(
                     label: 'Send rental request',
                     loading: _sending,

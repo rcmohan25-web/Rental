@@ -11,7 +11,7 @@ Flutter-only frontend, Supabase backend, built for robustness at near-zero runni
 The full plan is in `docs/reference/Rental_by_Sapati_Final_Implementation_Plan.docx`. Decisions made with the supervisor after the plan are in `docs/business-rules.md` and win over the plan.
 
 ## Status
-Phase 0 (skeleton and contracts): repository, CI, theme and shared widgets done. Contract and first migration in progress. Tracked in `docs/BUILD_LOG.md` and the GitHub issues.
+Phase 0 is finished. Phase 1 (identity and listing) is in progress: Build 0.4 delivers auth, ID gate, admin ID queue, data layer and listings. See docs/BUILD_LOG.md.
 
 ## Quick start
 ```bash

@@ -19,6 +19,7 @@
 /apps/mobile/lib/config/            @rcmohan25-web @Smaran-Aryal
 /apps/mobile/lib/skeleton/          @rcmohan25-web @Smaran-Aryal
 /apps/mobile/android/               @rcmohan25-web @Smaran-Aryal
+/apps/mobile/lib/shared/            @rcmohan25-web @Smaran-Aryal
 
 # Mobile features
 /apps/mobile/lib/features/auth/                    @rcmohan25-web @Smaran-Aryal
